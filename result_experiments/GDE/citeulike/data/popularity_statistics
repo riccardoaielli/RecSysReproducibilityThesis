@@ -1,0 +1,10 @@
+\begin{tabular}{lrrrrrrrr}
+\toprule
+{} &  Pop max &  Pop min &  Pop mean &  Pop median &  Gini Index &  Kendall Tau &  Shannon Entropy &  Herfindahl Index \\
+\midrule
+URM\_all       & 428.0000 &   1.0000 &   12.3972 &      9.0000 &      0.3834 &       1.0000 &          13.5944 &            0.9999 \\
+Full data     & 428.0000 &   1.0000 &   12.3972 &      9.0000 &      0.3834 &       1.0000 &          13.5944 &            0.9999 \\
+Training data &  92.0000 &   0.0000 &    2.3486 &      2.0000 &      0.5085 &       0.5105 &          13.3019 &            0.9998 \\
+Test data     & 351.0000 &   0.0000 &   10.0485 &      7.0000 &      0.3926 &       0.8623 &          13.5809 &            0.9999 \\
+\bottomrule
+\end{tabular}

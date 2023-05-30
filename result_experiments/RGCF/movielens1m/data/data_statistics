@@ -1,0 +1,7 @@
+\begin{tabular}{lrrrl}
+\toprule
+{} &  Interactions &  Items &  Users &   Sparsity \\
+\midrule
+movielens1m &        836478 &   3883 &   6040 &  9.643E-01 \\
+\bottomrule
+\end{tabular}

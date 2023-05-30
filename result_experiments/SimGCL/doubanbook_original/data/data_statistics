@@ -1,0 +1,7 @@
+\begin{tabular}{lrrrl}
+\toprule
+{} &  Interactions &  Items &  Users &   Sparsity \\
+\midrule
+doubanbook &        598420 &  22348 &  13025 &  9.979E-01 \\
+\bottomrule
+\end{tabular}

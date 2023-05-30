@@ -1,0 +1,7 @@
+\begin{tabular}{lrrrl}
+\toprule
+{} &  Interactions &  Items &  Users &   Sparsity \\
+\midrule
+citeulike &        210504 &  16980 &   5551 &  9.978E-01 \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,9 @@
+\begin{tabular}{lrrrrlrrrr}
+\toprule
+{} &   Pop max &  Pop min &  Pop mean &  Pop median & Int. Quota &  Gini Index &  Kendall Tau &  Shannon Entropy &  Herfindahl Index \\
+\midrule
+Full data     & 1907.0000 &  10.0000 &   32.5780 &     19.0000 &   100.00 \% &      0.4617 &       1.0000 &          15.8421 &            1.0000 \\
+Training data & 1532.0000 &   2.0000 &   26.0624 &     16.0000 &    80.00 \% &      0.4654 &       0.8982 &          15.8364 &            1.0000 \\
+Test data     &  375.0000 &   0.0000 &    6.5156 &      4.0000 &    20.00 \% &      0.5072 &       0.6568 &          15.7460 &            1.0000 \\
+\bottomrule
+\end{tabular}
