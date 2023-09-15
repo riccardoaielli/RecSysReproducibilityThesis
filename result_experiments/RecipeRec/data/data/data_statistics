@@ -1,0 +1,7 @@
+\begin{tabular}{lrrrl}
+\toprule
+{} &  Interactions &  Items &  Users &   Sparsity \\
+\midrule
+data &        135353 &  68794 &   7959 &  9.998E-01 \\
+\bottomrule
+\end{tabular}

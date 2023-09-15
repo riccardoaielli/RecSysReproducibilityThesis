@@ -264,7 +264,7 @@ def _baseline_tune(experiment_configuration, output_folder_path):
         ItemKNNCFRecommender,
         # P3alphaRecommender,
         # SLIM_BPR_Cython,
-        # RP3betaRecommender,
+        RP3betaRecommender,
         PureSVDRecommender,
         # NMFRecommender,
         # UserKNNCBFRecommender,
@@ -277,7 +277,7 @@ def _baseline_tune(experiment_configuration, output_folder_path):
         # NegHOSLIMRecommender,
         # NegHOSLIMElasticNetRecommender,
         # MultVAERecommender,
-        # GraphFilterCFRecommender,
+        GraphFilterCFRecommender,
         # ItemRankRecommender,
         # ItemRankSVDRecommender,
     ]
@@ -303,7 +303,7 @@ def _baseline_tune(experiment_configuration, output_folder_path):
                                              cutoff_to_optimize=experiment_configuration.cutoff_to_optimize,
                                              model_folder_path=output_folder_path)
 
-    mkl.set_num_threads(4)
+    # mkl.set_num_threads(4)
 
     pool = multiprocessing.Pool(
         processes=experiment_configuration.n_processes, maxtasksperchild=1)

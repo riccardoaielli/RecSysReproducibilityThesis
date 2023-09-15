@@ -15,6 +15,7 @@ result_experiments/*/*/*
 **popularity_plot.pdf
 
 IJCAI22/RecipeRec_github/data/*
+result_experiments/RecipeRec/data/data/data_split
 
 **/.pytest_cache/*
 
