@@ -69,7 +69,8 @@ def get_ingredient_neighbors_all_embeddings(blocks, output_nodes, secondToLast_i
             recipeNode_ingres = valid_batch_ingre_neighbors[0:batch_sum_ingre_length[i]]
             a = secondToLast_ingre[recipeNode_ingres]
         else:
-            recipeNode_ingres = valid_batch_ingre_neighbors[batch_sum_ingre_length[i-1]                                                            :batch_sum_ingre_length[i]]
+            recipeNode_ingres = valid_batch_ingre_neighbors[batch_sum_ingre_length[i-1]
+                :batch_sum_ingre_length[i]]
             a = secondToLast_ingre[recipeNode_ingres]
 
         # all ingre instead of average
@@ -332,7 +333,7 @@ class PoolingMultiheadAttention(nn.Module):
 
 
 class SetTransformer(nn.Module):
-    def __init__(self):
+    def __init__(self, drop_out):
         """
         Arguments:
             in_dimension: an integer.  # 2
@@ -368,7 +369,7 @@ class SetTransformer(nn.Module):
             nn.ReLU()
         )
 
-        self.dropout = nn.Dropout(self.drop_out)
+        self.dropout = nn.Dropout(drop_out)
 
     def forward(self, x):
         """
@@ -719,10 +720,10 @@ class custom_GATConv(nn.Module):
 
 
 class GNN(nn.Module):
-    def __init__(self, in_feats, hid_feats, out_feats, rel_names):
+    def __init__(self, in_feats, hid_feats, out_feats, rel_names, attentions_heads):
         super().__init__()
 
-        self.num_heads = self.attentions_heads  # 8
+        self.num_heads = attentions_heads  # 8
         self.hid_feats = int(hid_feats/self.num_heads)
         self.out_feats = int(out_feats/self.num_heads)
         self.relation_attention = RelationAttention(hid_feats)
@@ -836,12 +837,12 @@ def get_emb_loss(*params):
 
 ###### MODEL ######
 
-# TODO Passo i parametri con le cose che mi servono li setto sotto self. che diventano attributi dell'istanza
+# Passo i parametri con le cose che mi servono li setto sotto self. che diventano attributi dell'istanza
 # così sono accessibili da tutte le funzioni e classi nello scope dell'istanza
 
 
 class RecipeRec(nn.Module):
-    def __init__(self, ingre_neighbor_tensor, ingre_length_tensor, total_length_index_list, total_ingre_neighbor_tensor, graph):
+    def __init__(self, device, ingre_neighbor_tensor, ingre_length_tensor, total_length_index_list, total_ingre_neighbor_tensor, graph, learning_rate, epochs, batch_size, drop_out, embedding_size, reg, temperature, attentions_heads, gamma):
         super().__init__()
         self.user_embedding = nn.Sequential(
             nn.Linear(300, 128),
@@ -859,18 +860,28 @@ class RecipeRec(nn.Module):
             nn.Linear(128, 128),
             nn.ReLU()
         )
-        self.gnn = GNN(128, 128, 128, graph.etypes)
+        self.gnn = GNN(128, 128, 128, graph.etypes, attentions_heads)
         self.pred = ScorePredictor()
-        self.setTransformer_ = SetTransformer()
+        self.setTransformer_ = SetTransformer(drop_out)
         self.ingre_neighbor_tensor = ingre_neighbor_tensor
         self.ingre_length_tensor = ingre_length_tensor
         self.total_length_index_list = total_length_index_list
         self.total_ingre_neighbor_tensor = total_ingre_neighbor_tensor
         self.graph = graph
+        self.device = device
+        self.learning_rate = learning_rate,
+        self.epochs = epochs,
+        self.batch_size = batch_size,
+        self.drop_out = drop_out,
+        self.embedding_size = embedding_size,
+        self.reg = reg,
+        self.temperature = temperature,
+        self.attentions_heads = attentions_heads,
+        self.gamma = gamma,
 
     # TODO probabilmente viene usata anche per fare evaluation e model.training è un flag che dice se sto facendo training oppure no.
     # devo settarlo a mano quando chiamo la funzione con True o False
-    def forward(self, positive_graph, negative_graph, blocks, input_features):
+    def forward(self, positive_graph, negative_graph, blocks, input_features, is_training=True):
         user, instr, ingredient, ingredient_of_dst_recipe = input_features
 
         # major GNN
@@ -884,9 +895,9 @@ class RecipeRec(nn.Module):
                               'ingredient': ingredient_major}, torch.Tensor([[0]]))
 
         # contrastive - 1
-        user1 = node_drop(user, 0.1, model.training)
-        instr1 = node_drop(instr, 0.1, model.training)
-        ingredient1 = node_drop(ingredient, 0.1, model.training)
+        user1 = node_drop(user, self.drop_out[0], is_training)
+        instr1 = node_drop(instr, self.drop_out[0], is_training)
+        ingredient1 = node_drop(ingredient, self.drop_out[0], is_training)
 
         user1 = self.user_embedding(user1)
         user1 = norm(user1)
@@ -899,9 +910,9 @@ class RecipeRec(nn.Module):
                                'ingredient': ingredient1}, torch.Tensor([[1]]))
 
         # contrastive - 2
-        user2 = node_drop(user, 0.1, model.training)
-        instr2 = node_drop(instr, 0.1, model.training)
-        ingredient2 = node_drop(ingredient, 0.1, model.training)
+        user2 = node_drop(user, self.drop_out[0], is_training)
+        instr2 = node_drop(instr, self.drop_out[0], is_training)
+        ingredient2 = node_drop(ingredient, self.drop_out[0], is_training)
 
         user2 = self.user_embedding(user2)
         user2 = norm(user2)
@@ -915,7 +926,7 @@ class RecipeRec(nn.Module):
 
         # setTransformer
         all_ingre_emb_for_each_recipe = get_ingredient_neighbors_all_embeddings(
-            blocks, blocks[1].dstdata['_ID']['recipe'], ingredient_of_dst_recipe, self.ingre_neighbor_tensor, self.ingre_length_tensor)
+            blocks, blocks[1].dstdata['_ID']['recipe'], ingredient_of_dst_recipe, self.device, self.ingre_neighbor_tensor, self.ingre_length_tensor)
         all_ingre_emb_for_each_recipe = norm(all_ingre_emb_for_each_recipe)
         total_ingre_emb = self.setTransformer_(
             all_ingre_emb_for_each_recipe)  # 1

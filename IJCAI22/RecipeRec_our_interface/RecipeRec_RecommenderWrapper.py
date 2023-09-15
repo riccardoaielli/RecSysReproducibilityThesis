@@ -5,6 +5,7 @@ Created on 30/08/2023
 
 @author: Riccardo Luigi Aielli
 """
+import copy
 import json
 import pickle
 import re
@@ -55,10 +56,10 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
 
     RECOMMENDER_NAME = "RecipeRec_RecommenderWrapper"
 
-    def __init__(self, URM_train, ICM_train, graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, verbose=True, use_gpu=True):
+    def __init__(self, URM_train, graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, verbose=True, use_gpu=True):
         # TODO remove ICM_train and inheritance from BaseItemCBFRecommender if content features are not needed
         super(RecipeRec_RecommenderWrapper, self).__init__(
-            URM_train, ICM_train, verbose=verbose)
+            URM_train, verbose=verbose)
 
         self.graph = graph
         self.train_graph = train_graph
@@ -71,7 +72,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
             if torch.cuda.is_available():
                 self.device = torch.device("cuda:0")
                 torch.cuda.empty_cache()
-            if torch.backends.mps.is_available():
+            elif torch.backends.mps.is_available():
                 self.device = "mps"
         else:
             print("GPU is not available, using cpu")
@@ -166,7 +167,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
             reg=self.reg,
             temperature=self.temperature,
             attentions_heads=self.attentions_heads,
-            gamma=self.gamma,
+            gamma=self.gamma
         ).to(self.device)
 
     def fit(self,
@@ -195,12 +196,13 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
         self.attentions_heads = attentions_heads
         self.gamma = gamma
 
-        # TODO inizializza il modello
+        # Inizializza il modello
         self._init_model(spectral_features_dict=None)
         # Ottimizzatore
-        opt = torch.optim.Adam(self._model.parameters(), self.learning_rate)
+        self.opt = torch.optim.Adam(
+            self._model.parameters(), self.learning_rate)
         self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
-            opt, self.gamma)
+            self.opt, self.gamma)
 
         ###############################################################################
         # This is a standard training with early stopping part, most likely you won't need to change it
@@ -226,15 +228,14 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
     def _prepare_model_for_validation(self):
         pass
 
-    # TODO cambiare: va clonato l'oggetto pythorch e usato per ripristinare lo stato a quel modello finito il training.
+    # Va clonato l'oggetto pythorch e usato per ripristinare lo stato a quel modello finito il training.
     # Questo perchè devo usare il modello migliore per fare evaluation
     def _update_best_model(self):
-        self._USER_factors_best = self._model.user_embed.weight.clone().detach().cpu().numpy()
-        self._ITEM_factors_best = self._model.item_embed.weight.clone().detach().cpu().numpy()
+        self._best_model = copy.deepcopy(self._model)
 
     # contiene tutto il necessario per far runnare una singola epoca
     def _run_epoch(self, currentEpoch):
-        # TODO replace this with the train loop for one epoch of the model
+        # Replace this with the train loop for one epoch of the model
 
         train_start = time.time()
         epoch_loss = 0
@@ -243,7 +244,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
         iteration_cnt = 0
 
         for input_nodes, positive_graph, negative_graph, blocks in self.train_edgeloader:
-            self.model.train()
+            self._model.train()
             blocks = [b.to(self.device) for b in blocks]
             positive_graph = positive_graph.to(self.device)
             negative_graph = negative_graph.to(self.device)
@@ -255,7 +256,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
             input_features = [input_user, input_instr,
                               input_ingredient, ingredient_of_dst_recipe]
 
-            pos_score, neg_score, x1, x2 = self.model(
+            pos_score, neg_score, x1, x2 = self._model(
                 positive_graph, negative_graph, blocks, input_features)
             contrastive_loss = get_contrastive_loss(x1, x2, self.temperature)
             # emb_loss = get_emb_loss(x1, x2)
@@ -325,30 +326,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
         self._print("Saving model in file '{}'".format(
             folder_path + file_name))
 
-        spectral_features_dict = self._model.get_spectral_features()
-
-        _USER_factors = self._model.user_embed.weight.clone().detach().cpu().numpy()
-        _ITEM_factors = self._model.item_embed.weight.clone().detach().cpu().numpy()
-
-        data_dict_to_save = {
-            # Tutto ciò che serve per il costruttore del modello
-            # TODO aggiungere gli Hyperparameters, forse non serve dipende come salvo il modello
-            'drop_out': self.drop_out,
-            'embedding_size': self.embedding_size,
-            'reg': self.reg,
-            'batch_size': self.batch_size,
-
-
-            # Quello che serve per il modello
-            # Model parameters
-            "model_spectral_features_dict": spectral_features_dict,
-            "model_USER_factors": _USER_factors,
-            "model_ITEM_factors": _ITEM_factors,
-        }
-
-        dataIO = DataIO(folder_path=folder_path)
-        dataIO.save_data(file_name=file_name,
-                         data_dict_to_save=data_dict_to_save)
+        torch.save(self._model.state_dict(), folder_path + file_name)
 
         self._print("Saving complete")
 
@@ -360,24 +338,9 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
         self._print("Loading model from file '{}'".format(
             folder_path + file_name))
 
-        # Reload the attributes dictionary
-        dataIO = DataIO(folder_path=folder_path)
-        data_dict = dataIO.load_data(file_name=file_name)
+        # Inizializza il modello
+        self._init_model(spectral_features_dict=None)
 
-        for attrib_name in data_dict.keys():
-            if not attrib_name.startswith("model_"):
-                self.__setattr__(attrib_name, data_dict[attrib_name])
-
-        self._init_model(
-            spectral_features_dict=data_dict["model_spectral_features_dict"])
-
-        _USER_factors = data_dict["model_USER_factors"]
-        _ITEM_factors = data_dict["model_ITEM_factors"]
-
-        # Creo l'istanza del modello e inserisco gli iperparametri salvati
-        self._model.user_embed = torch.nn.Embedding.from_pretrained(
-            torch.from_numpy(_USER_factors).to(self.device))
-        self._model.item_embed = torch.nn.Embedding.from_pretrained(
-            torch.from_numpy(_ITEM_factors).to(self.device))
+        self._model.load_state_dict(torch.load(folder_path + file_name))
 
         self._print("Loading complete")
