@@ -63,7 +63,6 @@ class RecipeRecDataReader(object):
     URM_DICT = {}
     ICM_DICT = {}
     UCM_DICT = {}
-    GRAPH_DICT = {}
 
     def __init__(self, dataset_name, pre_splitted_path, freeze_split=False):
         super(RecipeRecDataReader, self).__init__()
@@ -333,7 +332,6 @@ class RecipeRecDataReader(object):
                 "ICM_DICT": self.ICM_DICT,
                 "UCM_DICT": self.UCM_DICT,
                 "URM_DICT": self.URM_DICT,
-                # "GRAPH_DICT": self.GRAPH_DICT,
             }
 
             save_graphs(pre_splitted_path + "graph_saved",
