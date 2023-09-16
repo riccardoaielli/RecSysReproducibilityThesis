@@ -282,8 +282,8 @@ def run_this_algorithm_experiment(dataset_name,
                 # recommender_instance.fit(**all_hyperparameters)
 
                 # Fa evaluation del modello modello migliore addestrato sopra nella fit
-                results_df, _ = evaluator_validation.evaluateRecommender(
-                    recommender_instance)
+                # results_df, _ = evaluator_validation.evaluateRecommender(
+                #     recommender_instance)
 
             except Exception as e:
                 print("On recommender {} Exception {}".format(
