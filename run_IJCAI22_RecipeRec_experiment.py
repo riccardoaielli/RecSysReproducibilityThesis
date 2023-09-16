@@ -36,6 +36,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                          train_edgeloader,
                                          val_edgeloader,
                                          test_edgeloader,
+                                         n_test_negs,
                                          recommender_class,
                                          hyperparameters_dictionary,
                                          max_epochs_for_earlystopping,
@@ -63,9 +64,9 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     # This data structure contains the attributes needed to create an instance of the recommender, additional
     # attributes needed by the fit function but that are not hyperparameters to tune and earlystopping hyperparameters
     recommender_input_args = SearchInputRecommenderArgs(
-        # TODO mettere qua i pasrametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
+        # Mettere qua i pasrametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader],
+            experiment_configuration.URM_train, graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -111,7 +112,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train, graph,
-                                     train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader],
+                                     train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -161,6 +162,7 @@ def run_this_algorithm_experiment(dataset_name,
     train_edgeloader = dataset.train_edgeloader
     val_edgeloader = dataset.val_edgeloader
     test_edgeloader = dataset.test_edgeloader
+    n_test_negs = dataset.n_test_negs
 
     URM_train_last_test = URM_train + URM_validation
 
@@ -257,25 +259,27 @@ def run_this_algorithm_experiment(dataset_name,
                 fold_folder = this_model_folder_path + "{}/".format(fold_index)
 
                 # Funzione che esegue il modello con gli iperparametri settati
-                """ _run_algorithm_fixed_hyperparameters(experiment_configuration,
+                _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                                      graph,
                                                      train_graph,
                                                      val_graph,
                                                      train_edgeloader,
                                                      val_edgeloader,
                                                      test_edgeloader,
+                                                     n_test_negs,
                                                      RecipeRec_RecommenderWrapper,  # Classe del metodo che deve eseguire
                                                      all_hyperparameters,
                                                      max_epochs_for_earlystopping,
                                                      min_epochs_for_earlystopping,
                                                      fold_folder,
-                                                     use_gpu) """
+                                                     use_gpu)
 
-                # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
-                recommender_instance = RecipeRec_RecommenderWrapper(experiment_configuration.URM_train,
-                                                                    graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, use_gpu=False)
-                # il ** srotola i componenti del dizionario e li passa come parametri separati
-                recommender_instance.fit(**all_hyperparameters)
+                # # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
+                # # TODO sostituire use_gpu = True
+                # recommender_instance = RecipeRec_RecommenderWrapper(experiment_configuration.URM_train,
+                #                                                     graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs, use_gpu=False)
+                # # il ** srotola i componenti del dizionario e li passa come parametri separati
+                # recommender_instance.fit(**all_hyperparameters)
 
                 # Fa evaluation del modello modello migliore addestrato sopra nella fit
                 results_df, _ = evaluator_validation.evaluateRecommender(

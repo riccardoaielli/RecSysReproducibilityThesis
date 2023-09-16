@@ -212,6 +212,7 @@ class RecipeRecDataReader(object):
             self.train_edgeloader = train_edgeloader
             self.val_edgeloader = val_edgeloader
             self.test_edgeloader = test_edgeloader
+            self.n_test_negs = n_test_negs
 
         except FileNotFoundError:
 

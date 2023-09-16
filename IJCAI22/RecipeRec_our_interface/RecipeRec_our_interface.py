@@ -69,8 +69,7 @@ def get_ingredient_neighbors_all_embeddings(blocks, output_nodes, secondToLast_i
             recipeNode_ingres = valid_batch_ingre_neighbors[0:batch_sum_ingre_length[i]]
             a = secondToLast_ingre[recipeNode_ingres]
         else:
-            recipeNode_ingres = valid_batch_ingre_neighbors[batch_sum_ingre_length[i-1]
-                :batch_sum_ingre_length[i]]
+            recipeNode_ingres = valid_batch_ingre_neighbors[batch_sum_ingre_length[i-1]                                                            :batch_sum_ingre_length[i]]
             a = secondToLast_ingre[recipeNode_ingres]
 
         # all ingre instead of average
@@ -842,7 +841,7 @@ def get_emb_loss(*params):
 
 
 class RecipeRec(nn.Module):
-    def __init__(self, device, ingre_neighbor_tensor, ingre_length_tensor, total_length_index_list, total_ingre_neighbor_tensor, graph, learning_rate, epochs, batch_size, drop_out, embedding_size, reg, temperature, attentions_heads, gamma):
+    def __init__(self, device, ingre_neighbor_tensor, ingre_length_tensor, total_length_index_list, total_ingre_neighbor_tensor, graph, learning_rate, epochs, batch_size, drop_out, embedding_size, reg, temperature, attentions_heads, gamma, is_training=True):
         super().__init__()
         self.user_embedding = nn.Sequential(
             nn.Linear(300, 128),
@@ -869,19 +868,20 @@ class RecipeRec(nn.Module):
         self.total_ingre_neighbor_tensor = total_ingre_neighbor_tensor
         self.graph = graph
         self.device = device
-        self.learning_rate = learning_rate,
-        self.epochs = epochs,
-        self.batch_size = batch_size,
-        self.drop_out = drop_out,
-        self.embedding_size = embedding_size,
-        self.reg = reg,
-        self.temperature = temperature,
-        self.attentions_heads = attentions_heads,
-        self.gamma = gamma,
+        self.learning_rate = learning_rate
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.drop_out = drop_out
+        self.embedding_size = embedding_size
+        self.reg = reg
+        self.temperature = temperature
+        self.attentions_heads = attentions_heads
+        self.gamma = gamma
+        self.is_training = is_training
 
     # TODO probabilmente viene usata anche per fare evaluation e model.training è un flag che dice se sto facendo training oppure no.
     # devo settarlo a mano quando chiamo la funzione con True o False
-    def forward(self, positive_graph, negative_graph, blocks, input_features, is_training=True):
+    def forward(self, positive_graph, negative_graph, blocks, input_features):
         user, instr, ingredient, ingredient_of_dst_recipe = input_features
 
         # major GNN
@@ -895,9 +895,9 @@ class RecipeRec(nn.Module):
                               'ingredient': ingredient_major}, torch.Tensor([[0]]))
 
         # contrastive - 1
-        user1 = node_drop(user, self.drop_out[0], is_training)
-        instr1 = node_drop(instr, self.drop_out[0], is_training)
-        ingredient1 = node_drop(ingredient, self.drop_out[0], is_training)
+        user1 = node_drop(user, self.drop_out[0], self.is_training)
+        instr1 = node_drop(instr, self.drop_out[0], self.is_training)
+        ingredient1 = node_drop(ingredient, self.drop_out[0], self.is_training)
 
         user1 = self.user_embedding(user1)
         user1 = norm(user1)
@@ -910,9 +910,9 @@ class RecipeRec(nn.Module):
                                'ingredient': ingredient1}, torch.Tensor([[1]]))
 
         # contrastive - 2
-        user2 = node_drop(user, self.drop_out[0], is_training)
-        instr2 = node_drop(instr, self.drop_out[0], is_training)
-        ingredient2 = node_drop(ingredient, self.drop_out[0], is_training)
+        user2 = node_drop(user, self.drop_out[0], self.is_training)
+        instr2 = node_drop(instr, self.drop_out[0], self.is_training)
+        ingredient2 = node_drop(ingredient, self.drop_out[0], self.is_training)
 
         user2 = self.user_embedding(user2)
         user2 = norm(user2)

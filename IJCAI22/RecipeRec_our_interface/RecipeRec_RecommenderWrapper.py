@@ -56,7 +56,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
 
     RECOMMENDER_NAME = "RecipeRec_RecommenderWrapper"
 
-    def __init__(self, URM_train, graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, verbose=True, use_gpu=True):
+    def __init__(self, URM_train, graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs, verbose=True, use_gpu=True):
         # TODO remove ICM_train and inheritance from BaseItemCBFRecommender if content features are not needed
         super(RecipeRec_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
@@ -67,6 +67,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
         self.train_edgeloader = train_edgeloader
         self.val_edgeloader = val_edgeloader
         self.test_edgeloader = test_edgeloader
+        self.n_test_negs = n_test_negs
 
         if use_gpu:
             if torch.cuda.is_available():
@@ -86,23 +87,70 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
             sps.csr_matrix(self.URM_train).indptr) > 0]
         # self.warm_user_ids = torch.from_numpy(self.warm_user_ids).to(self.device)
 
-    def _compute_item_score(self, user_id_array, items_to_compute=None):
+    def _compute_item_score(self):
         # In order to compute the prediction the model may need a Session. The session is an attribute of this Wrapper.
         # There are two possible scenarios for the creation of the session: at the beginning of the fit function (training phase)
         # or at the end of the fit function (before loading the best model, testing phase)
 
-        # predict_all = self.model.predict_matrix().detach().cpu().numpy()
-        predict_batch = self._model.predict_batch(
-            user_id_array).detach().cpu().numpy()
+        print('start _compute_item_score ...')
+        self._model.eval()
 
-        if items_to_compute is not None:
-            item_scores = - \
-                np.ones((len(user_id_array), self.n_items)) * np.inf
-            item_scores[:, items_to_compute] = predict_batch[:,
-                                                             items_to_compute]
-        else:
-            item_scores = predict_batch
+        total_pos_score = torch.tensor([]).to(self.device)
+        total_neg_score = torch.tensor([]).to(self.device)
 
+        # for evaluation
+        user2pos_score_dict = {}
+        user2neg_score_dict = {}
+
+        with torch.no_grad():
+            for input_nodes, positive_graph, negative_graph, blocks in self.test_edgeloader:
+                blocks = [b.to(self.device) for b in blocks]
+                positive_graph = positive_graph.to(self.device)
+                negative_graph = negative_graph.to(self.device)
+
+                input_user = blocks[0].srcdata['random_feature']['user']
+                input_instr = blocks[0].srcdata['avg_instr_feature']['recipe']
+                input_ingredient = blocks[0].srcdata['nutrient_feature']['ingredient']
+                ingredient_of_dst_recipe = blocks[1].srcdata['nutrient_feature']['ingredient']
+                input_features = [input_user, input_instr,
+                                  input_ingredient, ingredient_of_dst_recipe]
+
+                pos_score, neg_score, x1, x2 = self._model(
+                    positive_graph, negative_graph, blocks, input_features, is_training=False)
+                # contrastive_loss = get_contrastive_loss(x1, x2)
+                total_pos_score = torch.cat([total_pos_score, pos_score])
+                total_neg_score = torch.cat([total_neg_score, neg_score])
+
+                # for evaluation
+                # we need to map the user id in subgraph to the whole graph
+                global_test_users = blocks[1].dstdata['_ID']['user']
+                test_users, test_recipes = positive_graph.edges(
+                    etype='u-r')
+                test_users = test_users.tolist()
+                test_recipes = test_recipes.tolist()
+
+                print("number of users to compute item score: " + len(test_users))
+                print("number of recipes: " + len(test_recipes))
+
+                item_scores = - \
+                    np.ones((len(test_users), len(test_recipes))) * np.inf
+                for index in range(len(test_users)):
+                    test_u = int(global_test_users[test_users[index]])
+                    test_r = int(test_recipes[index])
+                    test_score = float(pos_score[index])
+
+                    if test_u not in user2pos_score_dict:
+                        user2pos_score_dict[test_u] = []
+                    user2pos_score_dict[test_u].append(test_score)
+
+                    if test_u not in user2neg_score_dict:
+                        # n_test_negs=100 prendi da data_reader
+                        user2neg_score_dict[test_u] = neg_score[index *
+                                                                self.n_test_negs:(index+1)*self.n_test_negs]
+
+                    # TODO controlla calcolo, non so se test_u fa riferimento all'id del totale degli utenti o se è relativo al solo test set
+                    item_score = item_score[test_u][test_r] = test_score
+            # item_scores è la matrice utenti ricette con score corrispondente come valore di ritorno di _compute_item_score
         return item_scores
 
     def _init_model(self, spectral_features_dict=None):
@@ -294,24 +342,6 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
         #     print()
         #     print()
 
-        """ n = self.ICM_train.shape[0]
-
-        # for epoch in range(self._params.n_epochs):
-        num_iter = int(n / self._params.batch_size)
-        # gen_loss = self.cdl_estimate(data_x, params.cdl_max_iter)
-        gen_loss = self.model.cdl_estimate(self.ICM_train, num_iter)
-        self.model.m_theta[:] = self.model.transform(self.ICM_train)
-        likelihood = self.model.pmf_estimate(
-            self._train_users, self._train_items, None, None, self._params)
-        loss = -likelihood + 0.5 * gen_loss * n * self._params.lambda_r
-
-        self.USER_factors = self.model.m_U.copy()
-        self.ITEM_factors = self.model.m_V.copy() """
-
-        logging.info("[#epoch=%06d], loss=%.5f, neg_likelihood=%.5f, gen_loss=%.5f" % (
-            currentEpoch, loss, -likelihood, gen_loss))
-
-    # TODO Modifica
     # L'ideale sarebbe riuscire a clonare l'intero stato pythorch del modello con una funzione di libreria e nella load caruicarlo sempre allo stesso modo
     # evito di selezionare a mano i vari parametri e spostarli in giro
     # Gli oggetti pythorch sono dei grandi dizionari quindi volendo posso usare questa struttura per salvare il modello.
