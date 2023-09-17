@@ -75,6 +75,9 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
                 torch.cuda.empty_cache()
             elif torch.backends.mps.is_available():
                 self.device = "mps"
+            else:
+                print("GPU is not available, using cpu")
+                self.device = torch.device("cpu:0")
         else:
             print("GPU is not available, using cpu")
             self.device = torch.device("cpu:0")
