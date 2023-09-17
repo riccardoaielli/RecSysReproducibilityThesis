@@ -198,6 +198,7 @@ def run_this_algorithm_experiment(dataset_name,
     n_cases = 50  # Numero di iperparametri che vengono valutati
     n_processes = 3
 
+    # TODO vanno cmabiati gli evaluator
     # Usato per fare evaluation sul validation set
     evaluator_validation = EvaluatorHoldout(
         URM_validation, cutoff_list=cutoff_list)
@@ -259,7 +260,7 @@ def run_this_algorithm_experiment(dataset_name,
                 fold_folder = this_model_folder_path + "{}/".format(fold_index)
 
                 # Funzione che esegue il modello con gli iperparametri settati
-                _run_algorithm_fixed_hyperparameters(experiment_configuration,
+                """ _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                                      graph,
                                                      train_graph,
                                                      val_graph,
@@ -272,18 +273,18 @@ def run_this_algorithm_experiment(dataset_name,
                                                      max_epochs_for_earlystopping,
                                                      min_epochs_for_earlystopping,
                                                      fold_folder,
-                                                     use_gpu)
+                                                     use_gpu) """
 
-                # # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
-                # # TODO sostituire use_gpu = True
-                # recommender_instance = RecipeRec_RecommenderWrapper(experiment_configuration.URM_train,
-                #                                                     graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs, use_gpu=False)
-                # # il ** srotola i componenti del dizionario e li passa come parametri separati
-                # recommender_instance.fit(**all_hyperparameters)
+                # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
+                # TODO sostituire use_gpu = True
+                recommender_instance = RecipeRec_RecommenderWrapper(experiment_configuration.URM_train,
+                                                                    graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs, use_gpu=False)
+                # il ** srotola i componenti del dizionario e li passa come parametri separati
+                recommender_instance.fit(**all_hyperparameters)
 
                 # Fa evaluation del modello modello migliore addestrato sopra nella fit
-                # results_df, _ = evaluator_validation.evaluateRecommender(
-                #     recommender_instance)
+                results_df, _ = evaluator_validation.evaluateRecommender(
+                    recommender_instance)
 
             except Exception as e:
                 print("On recommender {} Exception {}".format(

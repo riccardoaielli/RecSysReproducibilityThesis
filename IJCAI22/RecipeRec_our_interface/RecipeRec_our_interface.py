@@ -894,10 +894,10 @@ class RecipeRec(nn.Module):
                               'ingredient': ingredient_major}, torch.Tensor([[0]]))
 
         # contrastive - 1
-        user1 = node_drop(user, self.drop_out(float)[0], is_training)
-        instr1 = node_drop(instr, self.drop_out(float)[0], is_training)
+        user1 = node_drop(user, 0.1, is_training)
+        instr1 = node_drop(instr, 0.1, is_training)
         ingredient1 = node_drop(
-            ingredient, self.drop_out(float)[0], is_training)
+            ingredient, 0.1, is_training)
 
         user1 = self.user_embedding(user1)
         user1 = norm(user1)
@@ -910,10 +910,10 @@ class RecipeRec(nn.Module):
                                'ingredient': ingredient1}, torch.Tensor([[1]]))
 
         # contrastive - 2
-        user2 = node_drop(user, self.drop_out(float)[0], is_training)
-        instr2 = node_drop(instr, self.drop_out(float)[0], is_training)
+        user2 = node_drop(user, 0.1, is_training)
+        instr2 = node_drop(instr, 0.1, is_training)
         ingredient2 = node_drop(
-            ingredient, self.drop_out(float)[0], is_training)
+            ingredient, 0.1, is_training)
 
         user2 = self.user_embedding(user2)
         user2 = norm(user2)
