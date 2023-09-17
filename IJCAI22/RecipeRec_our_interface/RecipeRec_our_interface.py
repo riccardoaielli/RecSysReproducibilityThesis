@@ -69,7 +69,7 @@ def get_ingredient_neighbors_all_embeddings(blocks, output_nodes, secondToLast_i
             recipeNode_ingres = valid_batch_ingre_neighbors[0:batch_sum_ingre_length[i]]
             a = secondToLast_ingre[recipeNode_ingres]
         else:
-            recipeNode_ingres = valid_batch_ingre_neighbors[batch_sum_ingre_length[i-1]                                                            :batch_sum_ingre_length[i]]
+            recipeNode_ingres = valid_batch_ingre_neighbors[batch_sum_ingre_length[i-1]:batch_sum_ingre_length[i]]
             a = secondToLast_ingre[recipeNode_ingres]
 
         # all ingre instead of average
@@ -894,9 +894,10 @@ class RecipeRec(nn.Module):
                               'ingredient': ingredient_major}, torch.Tensor([[0]]))
 
         # contrastive - 1
-        user1 = node_drop(user, self.drop_out[0], is_training)
-        instr1 = node_drop(instr, self.drop_out[0], is_training)
-        ingredient1 = node_drop(ingredient, self.drop_out[0], is_training)
+        user1 = node_drop(user, self.drop_out(float)[0], is_training)
+        instr1 = node_drop(instr, self.drop_out(float)[0], is_training)
+        ingredient1 = node_drop(
+            ingredient, self.drop_out(float)[0], is_training)
 
         user1 = self.user_embedding(user1)
         user1 = norm(user1)
@@ -909,9 +910,10 @@ class RecipeRec(nn.Module):
                                'ingredient': ingredient1}, torch.Tensor([[1]]))
 
         # contrastive - 2
-        user2 = node_drop(user, self.drop_out[0], is_training)
-        instr2 = node_drop(instr, self.drop_out[0], is_training)
-        ingredient2 = node_drop(ingredient, self.drop_out[0], is_training)
+        user2 = node_drop(user, self.drop_out(float)[0], is_training)
+        instr2 = node_drop(instr, self.drop_out(float)[0], is_training)
+        ingredient2 = node_drop(
+            ingredient, self.drop_out(float)[0], is_training)
 
         user2 = self.user_embedding(user2)
         user2 = norm(user2)
