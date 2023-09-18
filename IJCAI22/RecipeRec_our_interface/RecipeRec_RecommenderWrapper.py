@@ -268,6 +268,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
                                         algorithm_name=self.RECOMMENDER_NAME,
                                         **earlystopping_kwargs)
 
+        # TODO Devo cmbiarla?
         # Colonano il modello per salvarne il modello migliore
         self._model.user_embed = torch.nn.Embedding.from_pretrained(
             torch.from_numpy(self._USER_factors_best).to(self.device))

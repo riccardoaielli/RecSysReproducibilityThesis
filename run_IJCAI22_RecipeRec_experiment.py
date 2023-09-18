@@ -240,7 +240,8 @@ def run_this_algorithm_experiment(dataset_name,
     all_hyperparameters = {
         'learning_rate': 0.005,
         'drop_out': 0.1,
-        'epochs': 100,
+        # TODO cambiare epochs a 100
+        'epochs': 1,
         'batch_size': 1024,
         'embedding_size': 128,  # hidden size
         'reg': 0.1,  # lambda
