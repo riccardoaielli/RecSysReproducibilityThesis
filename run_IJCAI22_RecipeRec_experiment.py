@@ -56,6 +56,8 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     hyperparameters_dictionary = hyperparameters_dictionary.copy()
 
+    # TODO vedere implementazione funzioni sotto e capire che dati usano per il training
+
     # The SearchSingleCase object will train the method and evaluate it, saving all data in a zip folder
     hyperparameterSearch = SearchSingleCase(recommender_class,  # Addestra il meteodo sul training lo valuta, lo riaddestra su training e validation e infine valuta sul test
                                             evaluator_validation=experiment_configuration.evaluator_validation,
@@ -70,8 +72,6 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
-
-    # RecipeRec_RecommenderWrapper()
 
     # A copy of the SearchInputRecommenderArgs is needed to specify that the "last" instance will be trained
     # on the union of training and validation data. If earlystopping is used, the "last" instance will be trained for the
@@ -278,7 +278,7 @@ def run_this_algorithm_experiment(dataset_name,
                 # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
                 # TODO sostituire use_gpu = True
                 recommender_instance = RecipeRec_RecommenderWrapper(experiment_configuration.URM_train,
-                                                                    graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs, use_gpu=False)
+                                                                    graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs, use_gpu=True)
                 # il ** srotola i componenti del dizionario e li passa come parametri separati
                 recommender_instance.fit(**all_hyperparameters)
 
