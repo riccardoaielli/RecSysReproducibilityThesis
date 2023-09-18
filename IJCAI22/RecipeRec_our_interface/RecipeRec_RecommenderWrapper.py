@@ -268,12 +268,13 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
                                         algorithm_name=self.RECOMMENDER_NAME,
                                         **earlystopping_kwargs)
 
-        # TODO Devo cmbiarla?
+        # TODO Devo cmbiarla? Credo non mi servano
+        # Settano le user_embeddings and item_embeddings del modello migliore precedentemente salvato
         # Colonano il modello per salvarne il modello migliore
-        self._model.user_embed = torch.nn.Embedding.from_pretrained(
-            torch.from_numpy(self._USER_factors_best).to(self.device))
-        self._model.item_embed = torch.nn.Embedding.from_pretrained(
-            torch.from_numpy(self._ITEM_factors_best).to(self.device))
+        # self._model.user_embed = torch.nn.Embedding.from_pretrained(
+        #     torch.from_numpy(self._USER_factors_best).to(self.device))
+        # self._model.item_embed = torch.nn.Embedding.from_pretrained(
+        #     torch.from_numpy(self._ITEM_factors_best).to(self.device))
 
         self._print("Training complete")
 
