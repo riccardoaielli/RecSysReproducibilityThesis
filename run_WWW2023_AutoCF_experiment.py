@@ -6,6 +6,7 @@ Created on 15/06/2023
 @author: Anonymized for blind review
 """
 
+from WWW2023.AutoCF_our_interface.AutoCF_RecommenderWrapper import AutoCF_RecommenderWrapper
 from optimize_all_baselines import _baseline_tune, _run_algorithm_hyperopt, ExperimentConfiguration, copy_reproduced_metadata_in_baseline_folder
 from Utils.plot_popularity import plot_popularity_bias, save_popularity_statistics
 from data_statistics import save_data_statistics
@@ -24,18 +25,21 @@ from skopt.space import Real, Integer, Categorical
 
 from HyperparameterTuning.SearchSingleCase import SearchSingleCase
 from HyperparameterTuning.SearchAbstractClass import SearchInputRecommenderArgs
-
-# from WWW2023.AutoCF_our_interface.AutoCF_RecommenderWrapper import AutoCF_RecommenderWrapper
 from WWW2023.AutoCF_our_interface.AutoCFDataReader import AutoCFDataReader
+
+# Passare i parametri necessari al wrapper
 
 
 def _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                         # TODO passare parametri necessari
+                                         trnMat,
+                                         tstMat,
+                                         valMat,
                                          recommender_class,
                                          hyperparameters_dictionary,
                                          max_epochs_for_earlystopping,
                                          min_epochs_for_earlystopping,
-                                         output_folder_path, use_gpu):
+                                         output_folder_path,
+                                         use_gpu):
     """
     Train algorithm with the original hyperparameters
     1 - The model is trained with the maximum number of epochs
@@ -62,7 +66,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train],  # TODO inserire parametri per wrapper
+            experiment_configuration.URM_train, trnMat, tstMat, valMat, hyperparameters_dictionary['batch'], hyperparameters_dictionary['tstBat'], AutoCF_RecommenderWrapper],  # TODO inserire parametri per wrapper
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -106,7 +110,8 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         # TODO inserire parametri per wrapper,
-        CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train],
+        CONSTRUCTOR_POSITIONAL_ARGS=[
+            experiment_configuration.URM_train, trnMat, tstMat, valMat, hyperparameters_dictionary['batch'], hyperparameters_dictionary['tstBat'], AutoCF_RecommenderWrapper],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -252,14 +257,10 @@ def run_this_algorithm_experiment(dataset_name,
 
                 # Funzione che esegue il modello con gli iperparametri settati
                 _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                                     graph,  # TODO inserisci dati e istanza wrapper
-                                                     train_graph,
-                                                     val_graph,
-                                                     train_edgeloader,
-                                                     val_edgeloader,
-                                                     test_edgeloader,
-                                                     n_test_negs,
-                                                     RecipeRec_RecommenderWrapper,  # Classe del metodo che deve eseguire
+                                                     trnMat,
+                                                     tstMat,
+                                                     valMat,
+                                                     AutoCF_RecommenderWrapper,  # Classe del metodo che deve eseguire
                                                      all_hyperparameters,
                                                      max_epochs_for_earlystopping,
                                                      min_epochs_for_earlystopping,
@@ -268,7 +269,7 @@ def run_this_algorithm_experiment(dataset_name,
 
             except Exception as e:
                 print("On recommender {} Exception {}".format(
-                    RecipeRec_RecommenderWrapper, str(e)))
+                    AutoCF_RecommenderWrapper, str(e)))
                 traceback.print_exc()
 
     if flag_article_tune:

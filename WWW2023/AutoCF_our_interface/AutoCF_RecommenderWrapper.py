@@ -24,10 +24,8 @@ import scipy.sparse as sps
 # from Conferences.CIKM.ExampleAlgorithm_github.main import get_model
 
 
-# TODO replace the recommender class name with the correct one
 class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopping):
 
-    # TODO replace the recommender name with the correct one
     RECOMMENDER_NAME = "AutoCF_RecommenderWrapper"
 
     def __init__(self, URM_train, trnMat, tstMat, valMat, batch, tst_batch, verbose=True, use_gpu=True):
@@ -134,24 +132,18 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
                                verbose=False)
 
     def fit(self,
-            epochs=100,
-
             # TODO replace those hyperparameters with the ones you need
-            learning_rate_vae=1e-2,
-            learning_rate_cvae=1e-3,
-            num_factors=50,
-            dimensions_vae=[200, 100],
-            epochs_vae=[50, 50],
-            batch_size=128,
-            lambda_u=0.1,
-            lambda_v=10,
-            lambda_r=1,
-            a=1,
-            b=0.01,
-            M=300,
+            epochs=None,
+            batch_size=None,
+            learning_rate=None,
+            temperature=None,
+            attentions_heads=None,
+            drop_out=None,
+            embedding_size=None,
+            reg=None,
+            gamma=None,
 
             # These are standard
-            temp_file_folder=None,
             **earlystopping_kwargs
             ):
 

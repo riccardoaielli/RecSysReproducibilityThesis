@@ -50,7 +50,7 @@ class AutoCFDataReader(object):
         print(self.__class__.__name__ + ": Attempting to load data from " +
               dataset_dir)
 
-        # TODO mettere tutto quello che serve a caricare i dati e salva tutto in self.
+        # Mettere tutto quello che serve a caricare i dati e salva tutto in self.
 
         self.trnMat = self.loadOneFile(self.trnfile)
         self.tstMat = self.loadOneFile(self.tstfile)
