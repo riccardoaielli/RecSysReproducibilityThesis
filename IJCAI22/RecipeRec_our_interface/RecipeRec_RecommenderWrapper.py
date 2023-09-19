@@ -90,7 +90,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
             sps.csr_matrix(self.URM_train).indptr) > 0]
         # self.warm_user_ids = torch.from_numpy(self.warm_user_ids).to(self.device)
 
-    def _compute_item_score(self):
+    def _compute_item_score(self, user_id_array, items_to_compute=None):
         # In order to compute the prediction the model may need a Session. The session is an attribute of this Wrapper.
         # There are two possible scenarios for the creation of the session: at the beginning of the fit function (training phase)
         # or at the end of the fit function (before loading the best model, testing phase)
@@ -132,8 +132,9 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
                 test_users = test_users.tolist()
                 test_recipes = test_recipes.tolist()
 
-                print("number of users to compute item score: " + len(test_users))
-                print("number of recipes: " + len(test_recipes))
+                print("number of users to compute item score: {}".format(
+                    len(test_users)))
+                print("number of recipes: {}".format(len(test_recipes)))
 
                 item_scores = - \
                     np.ones((len(test_users), len(test_recipes))) * np.inf

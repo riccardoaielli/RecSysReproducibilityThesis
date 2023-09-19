@@ -255,6 +255,7 @@ def run_this_algorithm_experiment(dataset_name,
 
     if flag_article_default:
 
+        # TODO cos'è sto fold_index corrisponde in qualche modo ai diversi dataset?
         for fold_index in range(1, 6):
 
             try:
