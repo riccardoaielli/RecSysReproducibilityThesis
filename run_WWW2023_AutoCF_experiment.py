@@ -141,7 +141,6 @@ def run_this_algorithm_experiment(dataset_name,
     baseline_folder_path = result_folder_path + "baselines/"
     this_model_folder_path = result_folder_path + "this_model/"
 
-    # TODO passare gli argomenti batch e tst_batch Scelgo il dataset da leggere
     dataset = AutoCFDataReader(
         dataset_name, data_folder_path)
 
