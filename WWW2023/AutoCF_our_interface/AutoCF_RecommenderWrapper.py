@@ -195,7 +195,8 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         # Ottimizzatore
         self.opt = t.optim.Adam(self._model.parameters(),
                                 lr=self.lr, weight_decay=0)
-        self.masker = RandomMaskSubgraphs()
+        self.masker = RandomMaskSubgraphs(
+            self.device, self.n_users, self.maskDepth, self.n_items, keepRate)
         self.sampler = LocalGraph(self.device, self.seedNum)
 
         # TODO Non sicuro se serva o meno

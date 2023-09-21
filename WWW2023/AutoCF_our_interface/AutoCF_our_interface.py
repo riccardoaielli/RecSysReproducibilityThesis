@@ -222,12 +222,13 @@ class AutoCF(nn.Module):
         self.gcnLayers = nn.Sequential(
             *[GCNLayer() for i in range(gcn_layer)])
         self.gtLayers = nn.Sequential(
-            *[GTLayer(latdim) for i in range(gt_layer)])
+            *[GTLayer(latdim, head, device) for i in range(gt_layer)])
+        self.n_users = n_users
 
     def getEgoEmbeds(self):
         return t.concat([self.uEmbeds, self.iEmbeds], axis=0)
 
-    def forward(self, encoderAdj, n_users, decoderAdj=None):
+    def forward(self, encoderAdj, decoderAdj=None):
         embeds = t.concat([self.uEmbeds, self.iEmbeds], axis=0)
         embedsLst = [embeds]
         for i, gcn in enumerate(self.gcnLayers):
@@ -238,7 +239,7 @@ class AutoCF(nn.Module):
                 embeds = gt(decoderAdj, embedsLst[-1])
                 embedsLst.append(embeds)
         embeds = sum(embedsLst)
-        return embeds[:n_users], embeds[n_users:]
+        return embeds[:self.n_users], embeds[self.n_users:]
 
 
 class GCNLayer(nn.Module):
@@ -250,35 +251,38 @@ class GCNLayer(nn.Module):
 
 
 class GTLayer(nn.Module):
-    def __init__(self, latdim):
+    def __init__(self, latdim, head, device):
         super(GTLayer, self).__init__()
         self.qTrans = nn.Parameter(init(t.empty(latdim, latdim)))
         self.kTrans = nn.Parameter(init(t.empty(latdim, latdim)))
         self.vTrans = nn.Parameter(init(t.empty(latdim, latdim)))
+        self.head = head
+        self.latdim = latdim
+        self.device = device
 
-    def forward(self, adj, embeds, head, latdim, device):
+    def forward(self, adj, embeds):
         indices = adj._indices()
         rows, cols = indices[0, :], indices[1, :]
         rowEmbeds = embeds[rows]
         colEmbeds = embeds[cols]
 
         qEmbeds = (
-            rowEmbeds @ self.qTrans).view([-1, head, latdim // head])
+            rowEmbeds @ self.qTrans).view([-1, self.head, self.latdim // self.head])
         kEmbeds = (
-            colEmbeds @ self.kTrans).view([-1, head, latdim // head])
+            colEmbeds @ self.kTrans).view([-1, self.head, self.latdim // self.head])
         vEmbeds = (
-            colEmbeds @ self.vTrans).view([-1, head, latdim // head])
+            colEmbeds @ self.vTrans).view([-1, self.head, self.latdim // self.head])
 
         att = t.einsum('ehd, ehd -> eh', qEmbeds, kEmbeds)
         att = t.clamp(att, -10.0, 10.0)
         expAtt = t.exp(att)
-        tem = t.zeros([adj.shape[0], head]).to(device)
+        tem = t.zeros([adj.shape[0], self.head]).to(self.device)
         attNorm = (tem.index_add_(0, rows, expAtt))[rows]
         att = expAtt / (attNorm + 1e-8)  # eh
 
         resEmbeds = t.einsum('eh, ehd -> ehd', att,
-                             vEmbeds).view([-1, latdim])
-        tem = t.zeros([adj.shape[0], latdim]).to(device)
+                             vEmbeds).view([-1, self.latdim])
+        tem = t.zeros([adj.shape[0], self.latdim]).to(self.device)
         resEmbeds = tem.index_add_(0, rows, resEmbeds)  # nd
         return resEmbeds
 
@@ -313,9 +317,14 @@ class LocalGraph(nn.Module):
 
 
 class RandomMaskSubgraphs(nn.Module):
-    def __init__(self):
+    def __init__(self, device, n_users, maskDepth, n_items, keepRate):
         super(RandomMaskSubgraphs, self).__init__()
         self.flag = False
+        self.device = device
+        self.n_users = n_users
+        self.maskDepth = maskDepth
+        self.n_items = n_items
+        self.keepRate = keepRate
 
     def normalizeAdj(self, adj):
         degree = t.pow(t.sparse.sum(adj, dim=1).to_dense() + 1e-12, -0.5)
@@ -324,13 +333,13 @@ class RandomMaskSubgraphs(nn.Module):
         newVals = adj._values() * rowNorm * colNorm
         return t.sparse.FloatTensor(adj._indices(), newVals, adj.shape)
 
-    def forward(self, adj, seeds, device, n_users, maskDepth, n_items, keepRate):
+    def forward(self, adj, seeds):
         rows = adj._indices()[0, :]
         cols = adj._indices()[1, :]
 
         maskNodes = [seeds]
 
-        for i in range(maskDepth):
+        for i in range(self.maskDepth):
             curSeeds = seeds if i == 0 else nxtSeeds
             nxtSeeds = list()
             for seed in curSeeds:
@@ -338,7 +347,7 @@ class RandomMaskSubgraphs(nn.Module):
                 colIdct = (cols == seed)
                 idct = t.logical_or(rowIdct, colIdct)
 
-                if i != maskDepth - 1:
+                if i != self.maskDepth - 1:
                     mskRows = rows[idct]
                     mskCols = cols[idct]
                     nxtSeeds.append(mskRows)
@@ -349,8 +358,9 @@ class RandomMaskSubgraphs(nn.Module):
             if len(nxtSeeds) > 0:
                 nxtSeeds = t.unique(t.concat(nxtSeeds))
                 maskNodes.append(nxtSeeds)
-        sampNum = int((n_users + n_items) * keepRate)
-        sampedNodes = t.randint(n_users + n_items, size=[sampNum]).to(device)
+        sampNum = int((self.n_users + self.n_items) * self.keepRate)
+        sampedNodes = t.randint(
+            self.n_users + self.n_items, size=[sampNum]).to(self.device)
         if self.flag == False:
             l1 = adj._values().shape[0]
             l2 = rows.shape[0]
@@ -358,35 +368,35 @@ class RandomMaskSubgraphs(nn.Module):
             print('LENGTH CHANGE', '%.2f' % (l2 / l1), l2, l1)
             tem = t.unique(t.concat(maskNodes))
             print('Original SAMPLED NODES', '%.2f' % (
-                tem.shape[0] / (n_users + n_items)), tem.shape[0], (n_users + n_items))
+                tem.shape[0] / (self.n_users + self.n_items)), tem.shape[0], (self.n_users + self.n_items))
         maskNodes.append(sampedNodes)
         maskNodes = t.unique(t.concat(maskNodes))
         if self.flag == False:
             print('AUGMENTED SAMPLED NODES', '%.2f' % (
-                maskNodes.shape[0] / (n_users + n_items)), maskNodes.shape[0], (n_users + n_items))
+                maskNodes.shape[0] / (self.n_users + self.n_items)), maskNodes.shape[0], (self.n_users + self.n_items))
             self.flag = True
             print('-----')
 
         encoderAdj = self.normalizeAdj(t.sparse.FloatTensor(
-            t.stack([rows, cols], dim=0), t.ones_like(rows).to(device), adj.shape))
+            t.stack([rows, cols], dim=0), t.ones_like(rows).to(self.device), adj.shape))
 
         temNum = maskNodes.shape[0]
         temRows = maskNodes[t.randint(
-            temNum, size=[adj._values().shape[0]]).to(device)]
+            temNum, size=[adj._values().shape[0]]).to(self.device)]
         temCols = maskNodes[t.randint(
-            temNum, size=[adj._values().shape[0]]).to(device)]
+            temNum, size=[adj._values().shape[0]]).to(self.device)]
 
         newRows = t.concat(
-            [temRows, temCols, t.arange(n_users+n_items).to(device), rows])
+            [temRows, temCols, t.arange(self.n_users+self.n_items).to(self.device), rows])
         newCols = t.concat(
-            [temCols, temRows, t.arange(n_users+n_items).to(device), cols])
+            [temCols, temRows, t.arange(self.n_users+self.n_items).to(self.device), cols])
 
         # filter duplicated
-        hashVal = newRows * (n_users + n_items) + newCols
+        hashVal = newRows * (self.n_users + self.n_items) + newCols
         hashVal = t.unique(hashVal)
-        newCols = hashVal % (n_users + n_items)
-        newRows = ((hashVal - newCols) / (n_users + n_items)).long()
+        newCols = hashVal % (self.n_users + self.n_items)
+        newRows = ((hashVal - newCols) / (self.n_users + self.n_items)).long()
 
         decoderAdj = t.sparse.FloatTensor(t.stack(
-            [newRows, newCols], dim=0), t.ones_like(newRows).to(device).float(), adj.shape)
+            [newRows, newCols], dim=0), t.ones_like(newRows).to(self.device).float(), adj.shape)
         return encoderAdj, decoderAdj
