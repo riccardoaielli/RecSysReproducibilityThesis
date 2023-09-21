@@ -54,8 +54,9 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self.valMat = valMat
 
         self.n_users, self.n_items = trnMat.shape
-        self.torchBiAdj = makeTorchAdj(self.n_users, self.n_items, self.trnMat)
-        self.allOneAdj = makeAllOne(self.torchBiAdj)
+        self.torchBiAdj = makeTorchAdj(
+            self.n_users, self.n_items, self.trnMat, self.device)
+        self.allOneAdj = makeAllOne(self.torchBiAdj, self.device)
         trnData = TrnData(trnMat)
         self.trnLoader = dataloader.DataLoader(
             trnData, batch_size=batch, shuffle=True, num_workers=0)

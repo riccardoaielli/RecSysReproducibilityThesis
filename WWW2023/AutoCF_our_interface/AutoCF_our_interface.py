@@ -81,7 +81,7 @@ def normalizeAdj(mat):
     return mat.dot(dInvSqrtMat).transpose().dot(dInvSqrtMat).tocoo()
 
 
-def makeTorchAdj(n_user, n_items, mat):
+def makeTorchAdj(n_user, n_items, mat, device):
     # make ui adj
     a = sp.csr_matrix((n_user, n_user))
     b = sp.csr_matrix((n_items, n_items))
@@ -94,14 +94,14 @@ def makeTorchAdj(n_user, n_items, mat):
     idxs = t.from_numpy(np.vstack([mat.row, mat.col]).astype(np.int64))
     vals = t.from_numpy(mat.data.astype(np.float32))
     shape = t.Size(mat.shape)
-    return t.sparse.FloatTensor(idxs, vals, shape).to(t.device("cpu"))
+    return t.sparse.FloatTensor(idxs, vals, shape).to(device)
 
 
-def makeAllOne(torchAdj):
+def makeAllOne(torchAdj, device):
     idxs = torchAdj._indices()
     vals = t.ones_like(torchAdj._values())
     shape = torchAdj.shape
-    return t.sparse.FloatTensor(idxs, vals, shape).to(t.device("cpu"))
+    return t.sparse.FloatTensor(idxs, vals, shape).to(device)
 
 
 class TrnData(data.Dataset):
