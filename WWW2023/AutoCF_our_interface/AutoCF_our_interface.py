@@ -7,6 +7,14 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sps
 import scipy.sparse as sp
+import torch as t
+import numpy as np
+import pickle
+import os
+from statistics import mean
+import torch as t
+from torch import nn
+import torch.nn.functional as F
 
 
 # TimeLoggger
@@ -65,7 +73,7 @@ def contrast(nodes, allEmbeds, allEmbeds2=None):
 # DataHandler
 
 
-def normalizeAdj(self, mat):
+def normalizeAdj(mat):
     degree = np.array(mat.sum(axis=-1))
     dInvSqrt = np.reshape(np.power(degree, -0.5), [-1])
     dInvSqrt[np.isinf(dInvSqrt)] = 0.0
@@ -73,14 +81,14 @@ def normalizeAdj(self, mat):
     return mat.dot(dInvSqrtMat).transpose().dot(dInvSqrtMat).tocoo()
 
 
-def makeTorchAdj(self, mat):
+def makeTorchAdj(n_user, n_items, mat):
     # make ui adj
-    a = sp.csr_matrix((self.n_user, self.n_user))
-    b = sp.csr_matrix((self.n_item, self.n_item))
+    a = sp.csr_matrix((n_user, n_user))
+    b = sp.csr_matrix((n_items, n_items))
     mat = sp.vstack([sp.hstack([a, mat]), sp.hstack([mat.transpose(), b])])
     mat = (mat != 0) * 1.0
     mat = (mat + sp.eye(mat.shape[0])) * 1.0
-    mat = self.normalizeAdj(mat)
+    mat = normalizeAdj(mat)
 
     # make cuda tensor
     idxs = t.from_numpy(np.vstack([mat.row, mat.col]).astype(np.int64))
@@ -89,7 +97,7 @@ def makeTorchAdj(self, mat):
     return t.sparse.FloatTensor(idxs, vals, shape).to(t.device("cpu"))
 
 
-def makeAllOne(self, torchAdj):
+def makeAllOne(torchAdj):
     idxs = torchAdj._indices()
     vals = t.ones_like(torchAdj._values())
     shape = torchAdj.shape
@@ -103,11 +111,11 @@ class TrnData(data.Dataset):
         self.dokmat = coomat.todok()
         self.negs = np.zeros(len(self.rows)).astype(np.int32)
 
-    def negSampling(self):
+    def negSampling(self, n_items):
         for i in range(len(self.rows)):
             u = self.rows[i]
             while True:
-                iNeg = np.random.randint(self.n_item)
+                iNeg = np.random.randint(n_items)
                 if (u, iNeg) not in self.dokmat:
                     break
             self.negs[i] = iNeg
@@ -141,3 +149,244 @@ class TstData(data.Dataset):
 
     def __getitem__(self, idx):
         return self.tstUsrs[idx], np.reshape(self.csrmat[self.tstUsrs[idx]].toarray(), [-1])
+
+
+# Coach
+
+    """ class Coach:
+    def __init__(self, handler, n_users, n_items):
+        self.handler = handler
+
+        print('USER', n_users, 'ITEM', n_items)
+        print('NUM OF INTERACTIONS', self.handler.trnLoader.dataset.__len__())
+        self.metrics = dict()
+        mets = ['Loss', 'preLoss', 'Recall', 'NDCG']
+        for met in mets:
+            self.metrics['Train' + met] = list()
+            self.metrics['Test' + met] = list()
+
+    def makePrint(self, name, ep, reses, save, epochs):
+        ret = 'Epoch %d/%d, %s: ' % (ep, epochs, name)
+        for metric in reses:
+            val = reses[metric]
+            ret += '%s = %.4f, ' % (metric, val)
+            tem = name + metric
+            if save and tem in self.metrics:
+                self.metrics[tem].append(val)
+        ret = ret[:-2] + '  '
+        return ret """
+
+    """ def testEpoch(self):
+        tstLoader = self.handler.tstLoader
+        epLoss, epRecall, epNdcg = [0] * 3
+        i = 0
+        num = tstLoader.dataset.__len__()
+        steps = num // tstBat
+        for usr, trnMask in tstLoader:
+            i += 1
+            usr = usr.long().to(device)
+            trnMask = trnMask.to(device)
+            usrEmbeds, itmEmbeds = self.model(
+                self.handler.torchBiAdj, self.handler.torchBiAdj)
+
+            allPreds = t.mm(usrEmbeds[usr], t.transpose(
+                itmEmbeds, 1, 0)) * (1 - trnMask) - trnMask * 1e8
+            # TODO cambia con cutoff to optimize?
+            _, topLocs = t.topk(allPreds, args.topk)
+            recall, ndcg = self.calcRes(topLocs.cpu().numpy(
+            ), self.handler.tstLoader.dataset.tstLocs, usr)
+            epRecall += recall
+            epNdcg += ndcg
+            log('Steps %d/%d: recall = %.1f, ndcg = %.1f          ' %
+                (i, steps, recall, ndcg), save=False, oneline=True)
+        ret = dict()
+        ret['Recall'] = epRecall / num
+        ret['NDCG'] = epNdcg / num
+        return ret """
+
+
+# MODEL
+# TODO cambiare gli args con gli iperparametri, quelli che avanzano li tolgo dalla lista iperparametri
+# e li faccio diventare degli argomenti da passare a funzione
+
+init = nn.init.xavier_uniform_
+uniformInit = nn.init.uniform
+
+
+class AutoCF(nn.Module):
+    def __init__(self, device, n_users, n_items, lr, epochs, batch, tstBat, latdim, reg, ssl_reg, decay, head, gcn_layer, gt_layer, tstEpoch, seedNum, maskDepth, fixSteps, keepRate, eps):
+        super(AutoCF, self).__init__()
+
+        self.uEmbeds = nn.Parameter(init(t.empty(n_users, latdim)))
+        self.iEmbeds = nn.Parameter(init(t.empty(n_items, latdim)))
+        self.gcnLayers = nn.Sequential(
+            *[GCNLayer() for i in range(gcn_layer)])
+        self.gtLayers = nn.Sequential(
+            *[GTLayer(latdim) for i in range(gt_layer)])
+
+    def getEgoEmbeds(self):
+        return t.concat([self.uEmbeds, self.iEmbeds], axis=0)
+
+    def forward(self, encoderAdj, n_users, decoderAdj=None):
+        embeds = t.concat([self.uEmbeds, self.iEmbeds], axis=0)
+        embedsLst = [embeds]
+        for i, gcn in enumerate(self.gcnLayers):
+            embeds = gcn(encoderAdj, embedsLst[-1])
+            embedsLst.append(embeds)
+        if decoderAdj is not None:
+            for gt in self.gtLayers:
+                embeds = gt(decoderAdj, embedsLst[-1])
+                embedsLst.append(embeds)
+        embeds = sum(embedsLst)
+        return embeds[:n_users], embeds[n_users:]
+
+
+class GCNLayer(nn.Module):
+    def __init__(self):
+        super(GCNLayer, self).__init__()
+
+    def forward(self, adj, embeds):
+        return t.spmm(adj, embeds)
+
+
+class GTLayer(nn.Module):
+    def __init__(self, latdim):
+        super(GTLayer, self).__init__()
+        self.qTrans = nn.Parameter(init(t.empty(latdim, latdim)))
+        self.kTrans = nn.Parameter(init(t.empty(latdim, latdim)))
+        self.vTrans = nn.Parameter(init(t.empty(latdim, latdim)))
+
+    def forward(self, adj, embeds, head, latdim, device):
+        indices = adj._indices()
+        rows, cols = indices[0, :], indices[1, :]
+        rowEmbeds = embeds[rows]
+        colEmbeds = embeds[cols]
+
+        qEmbeds = (
+            rowEmbeds @ self.qTrans).view([-1, head, latdim // head])
+        kEmbeds = (
+            colEmbeds @ self.kTrans).view([-1, head, latdim // head])
+        vEmbeds = (
+            colEmbeds @ self.vTrans).view([-1, head, latdim // head])
+
+        att = t.einsum('ehd, ehd -> eh', qEmbeds, kEmbeds)
+        att = t.clamp(att, -10.0, 10.0)
+        expAtt = t.exp(att)
+        tem = t.zeros([adj.shape[0], head]).to(device)
+        attNorm = (tem.index_add_(0, rows, expAtt))[rows]
+        att = expAtt / (attNorm + 1e-8)  # eh
+
+        resEmbeds = t.einsum('eh, ehd -> ehd', att,
+                             vEmbeds).view([-1, latdim])
+        tem = t.zeros([adj.shape[0], latdim]).to(device)
+        resEmbeds = tem.index_add_(0, rows, resEmbeds)  # nd
+        return resEmbeds
+
+
+class LocalGraph(nn.Module):
+    def __init__(self, device, seedNum):
+        super(LocalGraph, self).__init__()
+
+        self.device = device
+        self.seedNum = seedNum
+
+    def makeNoise(self, scores):
+        noise = t.rand(scores.shape).to(self.device)
+        noise = -t.log(-t.log(noise))
+        return t.log(scores) + noise
+
+    def forward(self, allOneAdj, embeds):
+        # allOneAdj should be with self-loop
+        # embeds should be zero-order embeds
+        order = t.sparse.sum(allOneAdj, dim=-1).to_dense().view([-1, 1])
+        fstEmbeds = t.spmm(allOneAdj, embeds) - embeds
+        fstNum = order
+        scdEmbeds = (t.spmm(allOneAdj, fstEmbeds) - fstEmbeds) - order * embeds
+        scdNum = (t.spmm(allOneAdj, fstNum) - fstNum) - order
+        subgraphEmbeds = (fstEmbeds + scdEmbeds) / (fstNum + scdNum + 1e-8)
+        subgraphEmbeds = F.normalize(subgraphEmbeds, p=2)
+        embeds = F.normalize(embeds, p=2)
+        scores = t.sigmoid(t.sum(subgraphEmbeds * embeds, dim=-1))
+        scores = self.makeNoise(scores)
+        _, seeds = t.topk(scores, self.seedNum)
+        return scores, seeds
+
+
+class RandomMaskSubgraphs(nn.Module):
+    def __init__(self):
+        super(RandomMaskSubgraphs, self).__init__()
+        self.flag = False
+
+    def normalizeAdj(self, adj):
+        degree = t.pow(t.sparse.sum(adj, dim=1).to_dense() + 1e-12, -0.5)
+        newRows, newCols = adj._indices()[0, :], adj._indices()[1, :]
+        rowNorm, colNorm = degree[newRows], degree[newCols]
+        newVals = adj._values() * rowNorm * colNorm
+        return t.sparse.FloatTensor(adj._indices(), newVals, adj.shape)
+
+    def forward(self, adj, seeds, device, n_users, maskDepth, n_items, keepRate):
+        rows = adj._indices()[0, :]
+        cols = adj._indices()[1, :]
+
+        maskNodes = [seeds]
+
+        for i in range(maskDepth):
+            curSeeds = seeds if i == 0 else nxtSeeds
+            nxtSeeds = list()
+            for seed in curSeeds:
+                rowIdct = (rows == seed)
+                colIdct = (cols == seed)
+                idct = t.logical_or(rowIdct, colIdct)
+
+                if i != maskDepth - 1:
+                    mskRows = rows[idct]
+                    mskCols = cols[idct]
+                    nxtSeeds.append(mskRows)
+                    nxtSeeds.append(mskCols)
+
+                rows = rows[t.logical_not(idct)]
+                cols = cols[t.logical_not(idct)]
+            if len(nxtSeeds) > 0:
+                nxtSeeds = t.unique(t.concat(nxtSeeds))
+                maskNodes.append(nxtSeeds)
+        sampNum = int((n_users + n_items) * keepRate)
+        sampedNodes = t.randint(n_users + n_items, size=[sampNum]).to(device)
+        if self.flag == False:
+            l1 = adj._values().shape[0]
+            l2 = rows.shape[0]
+            print('-----')
+            print('LENGTH CHANGE', '%.2f' % (l2 / l1), l2, l1)
+            tem = t.unique(t.concat(maskNodes))
+            print('Original SAMPLED NODES', '%.2f' % (
+                tem.shape[0] / (n_users + n_items)), tem.shape[0], (n_users + n_items))
+        maskNodes.append(sampedNodes)
+        maskNodes = t.unique(t.concat(maskNodes))
+        if self.flag == False:
+            print('AUGMENTED SAMPLED NODES', '%.2f' % (
+                maskNodes.shape[0] / (n_users + n_items)), maskNodes.shape[0], (n_users + n_items))
+            self.flag = True
+            print('-----')
+
+        encoderAdj = self.normalizeAdj(t.sparse.FloatTensor(
+            t.stack([rows, cols], dim=0), t.ones_like(rows).to(device), adj.shape))
+
+        temNum = maskNodes.shape[0]
+        temRows = maskNodes[t.randint(
+            temNum, size=[adj._values().shape[0]]).to(device)]
+        temCols = maskNodes[t.randint(
+            temNum, size=[adj._values().shape[0]]).to(device)]
+
+        newRows = t.concat(
+            [temRows, temCols, t.arange(n_users+n_items).to(device), rows])
+        newCols = t.concat(
+            [temCols, temRows, t.arange(n_users+n_items).to(device), cols])
+
+        # filter duplicated
+        hashVal = newRows * (n_users + n_items) + newCols
+        hashVal = t.unique(hashVal)
+        newCols = hashVal % (n_users + n_items)
+        newRows = ((hashVal - newCols) / (n_users + n_items)).long()
+
+        decoderAdj = t.sparse.FloatTensor(t.stack(
+            [newRows, newCols], dim=0), t.ones_like(newRows).to(device).float(), adj.shape)
+        return encoderAdj, decoderAdj

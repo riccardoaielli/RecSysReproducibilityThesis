@@ -66,7 +66,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, trnMat, tstMat, valMat, hyperparameters_dictionary['batch'], hyperparameters_dictionary['tstBat'], AutoCF_RecommenderWrapper],  # TODO inserire parametri per wrapper
+            experiment_configuration.URM_train, trnMat, tstMat, valMat, hyperparameters_dictionary['batch'], hyperparameters_dictionary['tstBat']],  # TODO inserire parametri per wrapper
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -111,7 +111,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         # TODO inserire parametri per wrapper,
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, trnMat, tstMat, valMat, hyperparameters_dictionary['batch'], hyperparameters_dictionary['tstBat'], AutoCF_RecommenderWrapper],
+            experiment_configuration.URM_train, trnMat, tstMat, valMat, hyperparameters_dictionary['batch'], hyperparameters_dictionary['tstBat']],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -242,6 +242,14 @@ def run_this_algorithm_experiment(dataset_name,
         'ssl_reg': 1,  # contrastive regularizer
         'decay': 0.96,  # weight decay rate
         'head': 4,  # number of heads in attention
+        'gcn_layer': 2,  # number of gcn layers
+        'gt_layer': 1,  # number of graph transformer layers
+        'tstEpoch': 3,  # number of epoch to test while training
+        'seedNum': 100,  # number of seeds in patch masking
+        'maskDepth': 2,  # depth to mask
+        'fixSteps': 10,  # steps to train on the same sampled graph
+        'keepRate': 0.2,  # ratio of nodes to keep
+        'eps': 0.2,  # scaled weight as reward
     }
 
     max_epochs_for_earlystopping = 500
@@ -256,7 +264,7 @@ def run_this_algorithm_experiment(dataset_name,
                 fold_folder = this_model_folder_path + "{}/".format(fold_index)
 
                 # Funzione che esegue il modello con gli iperparametri settati
-                _run_algorithm_fixed_hyperparameters(experiment_configuration,
+                """ _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                                      trnMat,
                                                      tstMat,
                                                      valMat,
@@ -265,7 +273,18 @@ def run_this_algorithm_experiment(dataset_name,
                                                      max_epochs_for_earlystopping,
                                                      min_epochs_for_earlystopping,
                                                      fold_folder,
-                                                     use_gpu)
+                                                     use_gpu) """
+
+                # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
+                # TODO sostituire use_gpu = True
+                recommender_instance = AutoCF_RecommenderWrapper(
+                    experiment_configuration.URM_train, trnMat, tstMat, valMat, all_hyperparameters["batch"], all_hyperparameters["tstBat"], use_gpu=True)
+                # il ** srotola i componenti del dizionario e li passa come parametri separati
+                recommender_instance.fit(**all_hyperparameters)
+
+                # Fa evaluation del modello modello migliore addestrato sopra nella fit
+                results_df, _ = evaluator_validation.evaluateRecommender(
+                    recommender_instance)
 
             except Exception as e:
                 print("On recommender {} Exception {}".format(
@@ -399,7 +418,8 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    dataset_list = ["sparse_amazon", "sparse_gowalla", "sparse_yelp"]
+    # , "sparse_gowalla", "sparse_yelp"] # TODO sistema dataset list
+    dataset_list = ["sparse_amazon"]
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))

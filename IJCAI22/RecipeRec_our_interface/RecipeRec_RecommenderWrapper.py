@@ -51,6 +51,8 @@ import scipy.sparse as sps
 from Utils.PyTorch.utils import get_optimizer
 from IJCAI22.RecipeRec_our_interface.RecipeRec_our_interface import *
 
+# TODO eredita da BaseTempFolder
+
 
 class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopping):
 
@@ -284,6 +286,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
 
     # Va clonato l'oggetto pythorch e usato per ripristinare lo stato a quel modello finito il training.
     # Questo perchè devo usare il modello migliore per fare evaluation
+    # TODO da cambiare con temp folder e farlo salvare su file
     def _update_best_model(self):
         self._best_model = copy.deepcopy(self._model)
 

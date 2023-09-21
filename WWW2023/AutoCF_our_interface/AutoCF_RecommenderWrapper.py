@@ -7,10 +7,12 @@ Created on 18/12/18
 """
 
 
+import gc
 import torch
 from Recommenders.BaseRecommender import BaseRecommender
 from Recommenders.Incremental_Training_Early_Stopping import Incremental_Training_Early_Stopping
 from Recommenders.DataIO import DataIO
+from Recommenders.BaseTempFolder import BaseTempFolder
 
 from WWW2023.AutoCF_our_interface.AutoCF_our_interface import *
 import torch.utils.data as dataloader
@@ -24,11 +26,11 @@ import scipy.sparse as sps
 # from Conferences.CIKM.ExampleAlgorithm_github.main import get_model
 
 
-class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopping):
+class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopping, BaseTempFolder):
 
     RECOMMENDER_NAME = "AutoCF_RecommenderWrapper"
 
-    def __init__(self, URM_train, trnMat, tstMat, valMat, batch, tst_batch, verbose=True, use_gpu=True):
+    def __init__(self, URM_train, trnMat, tstMat, valMat, batch, tstBat, verbose=True, use_gpu=True):
         super(AutoCF_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
 
@@ -51,15 +53,15 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self.tstMat = tstMat
         self.valMat = valMat
 
-        self.n_user, self.n_item = trnMat.shape
-        self.torchBiAdj = self.makeTorchAdj(trnMat)
-        self.allOneAdj = self.makeAllOne(self.torchBiAdj)
+        self.n_users, self.n_items = trnMat.shape
+        self.torchBiAdj = makeTorchAdj(self.n_users, self.n_items, self.trnMat)
+        self.allOneAdj = makeAllOne(self.torchBiAdj)
         trnData = TrnData(trnMat)
         self.trnLoader = dataloader.DataLoader(
             trnData, batch_size=batch, shuffle=True, num_workers=0)
         tstData = TstData(tstMat, trnMat)
         self.tstLoader = dataloader.DataLoader(
-            tstData, batch_size=tst_batch, shuffle=False, num_workers=0)
+            tstData, batch_size=tstBat, shuffle=False, num_workers=0)
 
         # This is used in _compute_item_score
         self._item_indices = np.arange(0, self.n_items, dtype=np.int)
@@ -112,97 +114,101 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         :return:
         """
 
-        tf.reset_default_graph()
+        # tf.reset_default_graph()
+        torch.cuda.empty_cache()
 
-        # TODO Instantiate the model
         # Always clear the default graph if using tehsorflow
-
-        self.model = get_model(num_users=self.n_users,
-                               num_items=self.n_items,
-                               num_factors=num_factors,
-                               params=self._params,
-                               input_dim=input_dim,
-                               dims=dimensions_vae,
-                               n_z=num_factors,
-                               activations=activations,
-                               loss_type='cross-entropy',
-                               lr=learning_rate_cvae,
-                               random_seed=random_seed,
-                               print_step=10,
-                               verbose=False)
+        # TODO inserire iperparametri, device e dati che servono al modello
+        self._model = AutoCF(device=self.device,
+                             n_users=self.n_users,
+                             n_items=self.n_items,
+                             lr=self.lr,
+                             epochs=self.epochs,
+                             batch=self.batch,
+                             tstBat=self.tstBat,
+                             latdim=self.latdim,
+                             reg=self.reg,
+                             ssl_reg=self.ssl_reg,
+                             decay=self.decay,
+                             head=self.head,
+                             gcn_layer=self.gcn_layer,
+                             gt_layer=self.gt_layer,
+                             tstEpoch=self.tstEpoch,
+                             seedNum=self.seedNum,
+                             maskDepth=self.maskDepth,
+                             fixSteps=self.fixSteps,
+                             keepRate=self.keepRate,
+                             eps=self.eps
+                             ).to(self.device)
 
     def fit(self,
-            # TODO replace those hyperparameters with the ones you need
+            # TODO rimuovi ciò che non è un iperparametro e passa come argomento
             epochs=None,
-            batch_size=None,
-            learning_rate=None,
-            temperature=None,
-            attentions_heads=None,
-            drop_out=None,
-            embedding_size=None,
+            batch=None,
+            tstBat=None,
+            lr=None,
+            latdim=None,
+            ssl_reg=None,
+            decay=None,
+            head=None,
+            gcn_layer=None,
+            gt_layer=None,
+            tstEpoch=None,
+            seedNum=None,
             reg=None,
-            gamma=None,
+            maskDepth=None,
+            fixSteps=None,
+            keepRate=None,
+            eps=None,
 
+            temp_file_folder=None,
             # These are standard
             **earlystopping_kwargs
             ):
 
+        # TODO capire se serve o meno
         # Get unique temporary folder
         self.temp_file_folder = self._get_unique_temp_folder(
             input_temp_file_folder=temp_file_folder)
 
-        # TODO replace the following code with what needed to create an instance of the model.
-        #  Preferably create an init_model function
-        #  If you are using tensorflow before creating the model call tf.reset_default_graph()
+        # TODO rimuovi ciò che non è un iperparametro e passa come argomento
+        self.lr = lr
+        self.epochs = epochs
+        self.batch = batch
+        self.tstBat = tstBat
+        self.latdim = latdim
+        self.reg = reg
+        self.ssl_reg = ssl_reg
+        self.decay = decay
+        self.head = head
+        self.gcn_layer = gcn_layer
+        self.gt_layer = gt_layer
+        self.tstEpoch = tstEpoch
+        self.seedNum = seedNum
+        self.maskDepth = maskDepth
+        self.fixSteps = fixSteps
+        self.keepRate = keepRate
+        self.eps = eps
 
-        # The following code contains various operations needed by another wrapper
-
-        self._params = Params()
-        self._params.lambda_u = lambda_u
-        self._params.lambda_v = lambda_v
-        self._params.lambda_r = lambda_r
-        self._params.a = a
-        self._params.b = b
-        self._params.M = M
-        self._params.n_epochs = epochs
-
-        # These are the train instances as a list of lists
-        # The following code processed the URM into the data structure the model needs to train
-        self._train_users = []
-
-        self.URM_train = sps.csr_matrix(self.URM_train)
-
-        for user_index in range(self.n_users):
-
-            start_pos = self.URM_train.indptr[user_index]
-            end_pos = self.URM_train.indptr[user_index + 1]
-
-            user_profile = self.URM_train.indices[start_pos:end_pos]
-            self._train_users.append(list(user_profile))
-
-        self._train_items = []
-
-        self.URM_train = sps.csc_matrix(self.URM_train)
-
-        for user_index in range(self.n_items):
-
-            start_pos = self.URM_train.indptr[user_index]
-            end_pos = self.URM_train.indptr[user_index + 1]
-
-            item_profile = self.URM_train.indices[start_pos:end_pos]
-            self._train_items.append(list(item_profile))
-
-        self.URM_train = sps.csr_matrix(self.URM_train)
-
+        # Inizializza il modello
         self._init_model()
+        # Ottimizzatore
+        self.opt = t.optim.Adam(self._model.parameters(),
+                                lr=self.lr, weight_decay=0)
+        self.masker = RandomMaskSubgraphs()
+        self.sampler = LocalGraph(self.device, self.seedNum)
 
-        # TODO Close all sessions used for training and open a new one for the "_best_model"
+        # TODO Non sicuro se serva o meno
+        # Close all sessions used for training and open a new one for the "_best_model"
         # close session tensorflow
-        self.sess.close()
-        self.sess = tf.Session()
+        # self.sess.close()
+        # self.sess = tf.Session()
 
         ###############################################################################
         # This is a standard training with early stopping part, most likely you won't need to change it
+
+        gc.collect()
+        torch.cuda.empty_cache()
 
         self._update_best_model()
 
@@ -217,33 +223,56 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         print("{}: Training complete".format(self.RECOMMENDER_NAME))
 
     def _prepare_model_for_validation(self):
-        # TODO Most likely you won't need to change this function
+        # Most likely you won't need to change this function
         pass
 
     def _update_best_model(self):
-        # TODO Most likely you won't need to change this function
         self.save_model(self.temp_file_folder, file_name="_best_model")
 
     def _run_epoch(self, currentEpoch):
-        # TODO replace this with the train loop for one epoch of the model
+        # TODO ho messo il codice di trainEpoch va sistemata
 
-        n = self.ICM_train.shape[0]
+        trnLoader = self.trnLoader
+        trnLoader.dataset.negSampling(self.n_items)
+        epLoss, epPreLoss = 0, 0
+        steps = trnLoader.dataset.__len__() // self.batch
+        for i, tem in enumerate(trnLoader):
+            if i % self.fixSteps == 0:
+                sampScores, seeds = self.sampler(
+                    self.allOneAdj, self._model.getEgoEmbeds())  # TODO passa iperparametri
+                encoderAdj, decoderAdj = self.masker(
+                    self.torchBiAdj, seeds)  # TODO passa iperparametri
+            ancs, poss, _ = tem
+            ancs = ancs.long().to(self.device)
+            poss = poss.long().to(self.device)
+            usrEmbeds, itmEmbeds = self._model(encoderAdj, decoderAdj)
+            ancEmbeds = usrEmbeds[ancs]
+            posEmbeds = itmEmbeds[poss]
 
-        # for epoch in range(self._params.n_epochs):
-        num_iter = int(n / self._params.batch_size)
-        # gen_loss = self.cdl_estimate(data_x, params.cdl_max_iter)
-        gen_loss = self.model.cdl_estimate(self.ICM_train, num_iter)
-        self.model.m_theta[:] = self.model.transform(self.ICM_train)
-        likelihood = self.model.pmf_estimate(
-            self._train_users, self._train_items, None, None, self._params)
-        loss = -likelihood + 0.5 * gen_loss * n * self._params.lambda_r
+            bprLoss = (-t.sum(ancEmbeds * posEmbeds, dim=-1)).mean()
+            regLoss = calcRegLoss(self._model) * self.reg
 
-        self.USER_factors = self.model.m_U.copy()
-        self.ITEM_factors = self.model.m_V.copy()
+            contrastLoss = (contrast(ancs, usrEmbeds) + contrast(poss, itmEmbeds)
+                            ) * self.ssl_reg + contrast(ancs, usrEmbeds, itmEmbeds)
 
-        logging.info("[#epoch=%06d], loss=%.5f, neg_likelihood=%.5f, gen_loss=%.5f" % (
-            currentEpoch, loss, -likelihood, gen_loss))
+            loss = bprLoss + regLoss + contrastLoss
 
+            if i % self.fixSteps == 0:
+                localGlobalLoss = -sampScores.mean()
+                loss += localGlobalLoss
+            epLoss += loss.item()
+            epPreLoss += bprLoss.item()
+            self.opt.zero_grad()
+            loss.backward()
+            self.opt.step()
+            log('Step %d/%d: loss = %.1f, reg = %.1f, cl = %.1f   ' %
+                (i, steps, loss, regLoss, contrastLoss), save=False, oneline=True)
+        ret = dict()
+        ret['Loss'] = epLoss / steps
+        ret['preLoss'] = epPreLoss / steps
+        return ret
+
+    # TODO sistemare
     def save_model(self, folder_path, file_name=None):
 
         if file_name is None:
@@ -252,33 +281,16 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self._print("Saving model in file '{}'".format(
             folder_path + file_name))
 
-        # TODO replace this with the Saver required by the model
-        #  in this case the neural network will be saved with the _weights suffix, which is rather standard
-        self.model.save_weights(
-            folder_path + file_name + "_weights", overwrite=True)
-
-        # TODO Alternativley you may save the tensorflow model with a session
-        saver = tf.train.Saver()
-        saver.save(self.sess, folder_path + file_name + "_session")
-
         data_dict_to_save = {
-            # TODO replace this with the hyperparameters and attribute list you need to re-instantiate
-            #  the model when calling the load_model
-            "n_users": self.n_users,
-            "n_items": self.n_items,
-            "mf_dim": self.mf_dim,
-            "layers": self.layers,
-            "reg_layers": self.reg_layers,
-            "reg_mf": self.reg_mf,
+            'model': self._model,
         }
 
-        # Do not change this
-        dataIO = DataIO(folder_path=folder_path)
-        dataIO.save_data(file_name=file_name,
-                         data_dict_to_save=data_dict_to_save)
+        t.save(data_dict_to_save, folder_path + file_name + '.mod')
+        log('Model Saved: %s' % folder_path + file_name)
 
         self._print("Saving complete")
 
+    # TODO sistemare
     def load_model(self, folder_path, file_name=None):
 
         if file_name is None:
@@ -287,17 +299,10 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self._print("Loading model from file '{}'".format(
             folder_path + file_name))
 
-        # Reload the attributes dictionary
-        dataIO = DataIO(folder_path=folder_path)
-        data_dict = dataIO.load_data(file_name=file_name)
-
-        for attrib_name in data_dict.keys():
-            self.__setattr__(attrib_name, data_dict[attrib_name])
-
-        # TODO replace this with what required to re-instantiate the model and load its weights,
-        #  Call the init_model function you created before
-        self._init_model()
-        self.model.load_weights(folder_path + file_name + "_weights")
+        ckp = t.load(folder_path + file_name + '.mod')
+        self._model = ckp['model']
+        self.opt = t.optim.Adam(self._model.parameters(),
+                                lr=self.lr, weight_decay=0)
 
         # TODO If you are using tensorflow, you may instantiate a new session here
         # TODO reset the default graph to "clean" the tensorflow state
