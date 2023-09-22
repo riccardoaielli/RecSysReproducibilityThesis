@@ -308,8 +308,8 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
 
         # TODO If you are using tensorflow, you may instantiate a new session here
         # TODO reset the default graph to "clean" the tensorflow state
-        tf.reset_default_graph()
-        saver = tf.train.Saver()
-        saver.restore(self.sess, folder_path + file_name + "_session")
+        # tf.reset_default_graph()
+        # saver = tf.train.Saver()
+        # saver.restore(self.sess, folder_path + file_name + "_session")
 
         self._print("Loading complete")

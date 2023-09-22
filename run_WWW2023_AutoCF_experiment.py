@@ -229,7 +229,7 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    use_gpu = False  # TODO metti a True
+    use_gpu = True  # TODO metti a True
 
     # TODO sistema lista all_hyperparameters
     all_hyperparameters = {
