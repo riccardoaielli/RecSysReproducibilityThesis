@@ -224,6 +224,7 @@ class AutoCF(nn.Module):
         self.gtLayers = nn.Sequential(
             *[GTLayer(latdim, head, device) for i in range(gt_layer)])
         self.n_users = n_users
+        self.device = device
 
     def getEgoEmbeds(self):
         return t.concat([self.uEmbeds, self.iEmbeds], axis=0)
@@ -240,6 +241,20 @@ class AutoCF(nn.Module):
                 embedsLst.append(embeds)
         embeds = sum(embedsLst)
         return embeds[:self.n_users], embeds[self.n_users:]
+
+    # TODO sistema predict per compute item score
+    def predict(self, trnLoader, torchBiAdj):
+        tstLoader = trnLoader
+        for usr, trnMask in tstLoader:
+            usr = usr.long().to(self.device)
+            trnMask = trnMask.to(self.device)
+            usrEmbeds, itmEmbeds = self._model(
+                torchBiAdj, torchBiAdj)
+            # Penso generi tutte le prediction per un utente solo
+            allPreds = t.mm(usrEmbeds[usr], t.transpose(
+                itmEmbeds, 1, 0)) * (1 - trnMask) - trnMask * 1e8
+
+        return allPreds
 
 
 class GCNLayer(nn.Module):

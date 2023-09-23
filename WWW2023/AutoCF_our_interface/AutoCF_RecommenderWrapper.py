@@ -68,15 +68,7 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self._item_indices = np.arange(0, self.n_items, dtype=np.int)
 
     def _compute_item_score(self, user_id_array, items_to_compute=None):
-        # TODO if the model in the end is either a matrix factorization algorithm or an ItemKNN/UserKNN
-        #  you can have this class inherit from BaseMatrixFactorization, BaseItemSimilarityMatrixRecommender
-        #  or BaseUSerSimilarityMatrixRecommender
-        #  in which case you do not have to re-implement this function, you only need to set the
-        #  USER_factors, ITEM_factors (see PureSVD) or W_Sparse (see ItemKNN) data structures in the FIT function
-        # In order to compute the prediction the model may need a Session. The session is an attribute of this Wrapper.
-        # There are two possible scenarios for the creation of the session: at the beginning of the fit function (training phase)
-        # or at the end of the fit function (before loading the best model, testing phase)
-
+        # TODO
         # Do not modify this
         # Create the full data structure that will contain the item scores
         item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
@@ -95,8 +87,8 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
             # The prediction requires a list of two arrays user_id, item_id of equal length
             # To compute the recommendations for a single user, we must provide its index as many times as the
             # number of items
-            item_score_user = self.model.predict([self._user_ones_vector*user_id, item_indices],
-                                                 batch_size=100, verbose=0)
+            item_score_user = self._model.predict(
+                self.trnLoader, self.torchBiAdj, self.torchBiAdj)
 
             # Do not modify this
             # Put the predictions in the correct items

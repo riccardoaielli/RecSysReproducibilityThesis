@@ -257,8 +257,8 @@ def run_this_algorithm_experiment(dataset_name,
 
     if flag_article_default:
 
-        # TODO cos'è sto fold_index corrisponde in qualche modo ai diversi dataset?
-        for fold_index in range(1, 6):
+        # TODO cos'è sto fold_index corrisponde in qualche modo ai diversi dataset? cambiare a range(1, 6)
+        for fold_index in range(1, 1):
 
             try:
                 fold_folder = this_model_folder_path + "{}/".format(fold_index)
