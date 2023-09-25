@@ -54,19 +54,22 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     hyperparameters_dictionary = hyperparameters_dictionary.copy()
 
-    # TODO vedere implementazione funzioni sotto e capire che dati usano per il training
-
     # The SearchSingleCase object will train the method and evaluate it, saving all data in a zip folder
     hyperparameterSearch = SearchSingleCase(recommender_class,  # Addestra il meteodo sul training lo valuta, lo riaddestra su training e validation e infine valuta sul test
                                             evaluator_validation=experiment_configuration.evaluator_validation,
                                             evaluator_test=experiment_configuration.evaluator_test)
+
+    parameters = {
+        'batch': 4096,  # batch_size
+        'tstBat': 256,  # tst_batch
+    }
 
     # This data structure contains the attributes needed to create an instance of the recommender, additional
     # attributes needed by the fit function but that are not hyperparameters to tune and earlystopping hyperparameters
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, trnMat, tstMat, valMat, hyperparameters_dictionary['batch'], hyperparameters_dictionary['tstBat']],  # TODO inserire parametri per wrapper
+            experiment_configuration.URM_train, trnMat, tstMat, valMat, parameters['batch'], parameters['tstBat']],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -109,9 +112,8 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                             evaluator_test=experiment_configuration.evaluator_test)
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
-        # TODO inserire parametri per wrapper,
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, trnMat, tstMat, valMat, hyperparameters_dictionary['batch'], hyperparameters_dictionary['tstBat']],
+            experiment_configuration.URM_train, trnMat, tstMat, valMat, parameters['batch'], parameters['tstBat']],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -151,7 +153,6 @@ def run_this_algorithm_experiment(dataset_name,
 
     print('Current dataset is: {}'.format(dataset_name))
 
-    # TODO Recupero i dati dal datareader
     URM_train = dataset.URM_DICT["URM_train"].copy()
     URM_validation = dataset.URM_DICT["URM_validation"].copy()
     URM_test = dataset.URM_DICT["URM_test"].copy()
@@ -192,7 +193,6 @@ def run_this_algorithm_experiment(dataset_name,
     n_cases = 50  # Numero di iperparametri che vengono valutati
     n_processes = 3
 
-    # TODO vanno cmabiati gli evaluator
     # Usato per fare evaluation sul validation set
     evaluator_validation = EvaluatorHoldout(
         URM_validation, cutoff_list=cutoff_list)
@@ -229,14 +229,12 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    use_gpu = True  # TODO metti a True
+    use_gpu = False  # TODO metti a True
 
-    # TODO sistema lista all_hyperparameters
+    # TODO sistema lista all_hyperparameters, rimuovi quelli che rimangono fissi
     all_hyperparameters = {
         'lr': 1e-3,  # learning_rate
         'epochs': 1,  # TODO cambia a 100
-        'batch': 4096,  # batch_size
-        'tstBat': 256,  # tst_batch
         'latdim': 32,  # embedding_size
         'reg': 1e-7,  # weight decay regularizer
         'ssl_reg': 1,  # contrastive regularizer
@@ -257,47 +255,51 @@ def run_this_algorithm_experiment(dataset_name,
 
     if flag_article_default:
 
-        # TODO cos'è sto fold_index corrisponde in qualche modo ai diversi dataset? cambiare a range(1, 6)
-        for fold_index in range(1, 1):
+        try:
 
-            try:
-                fold_folder = this_model_folder_path + "{}/".format(fold_index)
+            # Funzione che esegue il modello con gli iperparametri settati
+            _run_algorithm_fixed_hyperparameters(experiment_configuration,
+                                                 trnMat,
+                                                 tstMat,
+                                                 valMat,
+                                                 AutoCF_RecommenderWrapper,  # Classe del metodo che deve eseguire
+                                                 all_hyperparameters,
+                                                 max_epochs_for_earlystopping,
+                                                 min_epochs_for_earlystopping,
+                                                 this_model_folder_path,
+                                                 use_gpu)
 
-                # Funzione che esegue il modello con gli iperparametri settati
-                """ _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                                     trnMat,
-                                                     tstMat,
-                                                     valMat,
-                                                     AutoCF_RecommenderWrapper,  # Classe del metodo che deve eseguire
-                                                     all_hyperparameters,
-                                                     max_epochs_for_earlystopping,
-                                                     min_epochs_for_earlystopping,
-                                                     fold_folder,
-                                                     use_gpu) """
+            """ # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
+            recommender_instance = AutoCF_RecommenderWrapper(
+                experiment_configuration.URM_train, trnMat, tstMat, valMat, all_hyperparameters["batch"], all_hyperparameters["tstBat"], use_gpu=use_gpu)
+            # il ** srotola i componenti del dizionario e li passa come parametri separati
+            recommender_instance.fit(**all_hyperparameters)
 
-                # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
-                # TODO sostituire use_gpu = True
-                recommender_instance = AutoCF_RecommenderWrapper(
-                    experiment_configuration.URM_train, trnMat, tstMat, valMat, all_hyperparameters["batch"], all_hyperparameters["tstBat"], use_gpu=use_gpu)
-                # il ** srotola i componenti del dizionario e li passa come parametri separati
-                recommender_instance.fit(**all_hyperparameters)
+            # Fa evaluation del modello modello migliore addestrato sopra nella fit
+            results_df, _ = evaluator_validation.evaluateRecommender(
+                recommender_instance) """
 
-                # Fa evaluation del modello modello migliore addestrato sopra nella fit
-                results_df, _ = evaluator_validation.evaluateRecommender(
-                    recommender_instance)
+        except Exception as e:
+            print("On recommender {} Exception {}".format(
+                AutoCF_RecommenderWrapper, str(e)))
+            traceback.print_exc()
 
-            except Exception as e:
-                print("On recommender {} Exception {}".format(
-                    AutoCF_RecommenderWrapper, str(e)))
-                traceback.print_exc()
-
+    # DA NON ESEGUIRE
     if flag_article_tune:
 
         n_users, n_items = URM_train.shape
 
         # Reducing the maximum percentage of "features" for the eigenvalue-eigenvector decomposition if the dataset
         # is large to avoid memory errors. The available memory on the GPU is 24GB
-        ratio_high = 0.32
+        if dataset_name == "sparse_amazon":
+            ratio_high = 0.20
+        elif dataset_name == "sparse_gowalla":
+            ratio_high = 0.15
+        elif dataset_name == "sparse_yelp":
+            ratio_high = 0.15
+        else:
+            #   ratio must be <= 0.33 due to the lobpcg function
+            ratio_high = 0.32
 
         hyperparameters_range_dictionary = {
             "epochs": Categorical([max_epochs_for_earlystopping]),
@@ -328,7 +330,7 @@ def run_this_algorithm_experiment(dataset_name,
                                          }
 
         _run_algorithm_hyperopt(experiment_configuration,
-                                RecipeRec_RecommenderWrapper,  # TODO
+                                AutoCF_RecommenderWrapper,
                                 hyperparameters_range_dictionary,
                                 earlystopping_hyperparameters,
                                 this_model_folder_path + "hyperopt/",
@@ -350,17 +352,24 @@ def run_this_algorithm_experiment(dataset_name,
 
     if flag_print_results:
         paper_results = pd.DataFrame(index=[cutoff_to_optimize], columns=[
-                                     'HIT_RATE', 'NDCG'])  # TODO
+                                     'NDCG', 'RECALL'])
 
-        if dataset_name == 'data':
-            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 32.37  # TODO
+        if dataset_name == "sparse_amazon":
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0879
             paper_results.loc[cutoff_to_optimize,
-                              'HIT_RATE'] = 45.70  # Nel paper non usa recall, usa Hit Rate e forse anche precision
+                              'RECALL'] = 0.1277
 
+        elif dataset_name == "sparse_gowalla":
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.1645
+            paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.2538
+
+        elif dataset_name == "sparse_yelp":
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0437
+            paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0869
         else:
             paper_results = None
 
-        reproduced_algorithm_list, base_algorithm_list = copy_reproduced_metadata_in_baseline_folder(RecipeRec_RecommenderWrapper,  # TODO
+        reproduced_algorithm_list, base_algorithm_list = copy_reproduced_metadata_in_baseline_folder(AutoCF_RecommenderWrapper,
                                                                                                      this_model_folder_path,
                                                                                                      baseline_folder_path,
                                                                                                      paper_results=paper_results,
@@ -376,7 +385,7 @@ def run_this_algorithm_experiment(dataset_name,
 
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "article_metrics"),
                                              metrics_list=[
-                                                 'HIT_RATE', 'NDCG'],
+                                                 'NDCG', 'RECALL'],
                                              cutoffs_list=[cutoff_to_optimize],
                                              table_title=None,
                                              highlight_best=True)

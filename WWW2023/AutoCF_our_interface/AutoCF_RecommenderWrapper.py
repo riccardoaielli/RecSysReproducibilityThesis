@@ -68,7 +68,7 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self._item_indices = np.arange(0, self.n_items, dtype=np.int)
 
     def _compute_item_score(self, user_id_array, items_to_compute=None):
-        # TODO
+        # TODO Fixare in modo personalizzato per il io algoritnmo
         # Do not modify this
         # Create the full data structure that will contain the item scores
         item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
@@ -77,6 +77,31 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
             item_indices = items_to_compute
         else:
             item_indices = self._item_indices
+
+        usrEmbeds, itmEmbeds = self.model(
+            self.handler.torchBiAdj, self.handler.torchBiAdj)
+
+        allPreds = t.mm(usrEmbeds[user_id_array], t.transpose(
+            itmEmbeds, 1, 0)).detach().cpu().numpy()  # * (1 - trnMask) - trnMask * 1e8
+
+        if items_to_compute is not None:
+            item_scores[user_index,
+                        items_to_compute] = allPreds[items_to_compute]
+        else:
+            item_scores[user_index, :] = allPreds
+
+        """ # TODO sistema predict per compute item score
+            def predict(self, tstLoader, torchBiAdj, _model):
+                for usr, trnMask in tstLoader:
+                    usr = usr.long().to(self.device)  # usr è un tensore
+                    trnMask = trnMask.to(self.device)
+                    usrEmbeds, itmEmbeds = _model(
+                        torchBiAdj, torchBiAdj)
+                    # Penso generi tutte le prediction per un utente solo o forse per una batch
+                    allPreds = t.mm(usrEmbeds[usr], t.transpose(
+                        itmEmbeds, 1, 0)) * (1 - trnMask) - trnMask * 1e8
+
+                return allPreds """
 
         for user_index in range(len(user_id_array)):
 
@@ -88,15 +113,16 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
             # To compute the recommendations for a single user, we must provide its index as many times as the
             # number of items
             item_score_user = self._model.predict(
-                self.trnLoader, self.torchBiAdj, self.torchBiAdj)
+                self.tstLoader, self.torchBiAdj, self._model)
 
             # Do not modify this
             # Put the predictions in the correct items
             if items_to_compute is not None:
-                item_scores[user_index, items_to_compute] = item_score_user.ravel()[
+                item_scores[user_index, items_to_compute] = item_score_user.tensor.detach().numpy().ravel()[
                     items_to_compute]
             else:
-                item_scores[user_index, :] = item_score_user.ravel()
+                item_scores[user_index,
+                            :] = item_score_user.tensor.detach().numpy().ravel()
 
         return item_scores
 
@@ -107,11 +133,8 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         :return:
         """
 
-        # tf.reset_default_graph()
         torch.cuda.empty_cache()
 
-        # Always clear the default graph if using tehsorflow
-        # TODO inserire iperparametri, device e dati che servono al modello
         self._model = AutoCF(device=self.device,
                              n_users=self.n_users,
                              n_items=self.n_items,
@@ -159,7 +182,6 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
             **earlystopping_kwargs
             ):
 
-        # TODO capire se serve o meno
         # Get unique temporary folder
         self.temp_file_folder = self._get_unique_temp_folder(
             input_temp_file_folder=temp_file_folder)
@@ -192,16 +214,10 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
             self.device, self.n_users, self.maskDepth, self.n_items, keepRate)
         self.sampler = LocalGraph(self.device, self.seedNum)
 
-        # TODO Non sicuro se serva o meno
-        # Close all sessions used for training and open a new one for the "_best_model"
-        # close session tensorflow
-        # self.sess.close()
-        # self.sess = tf.Session()
-
         ###############################################################################
         # This is a standard training with early stopping part, most likely you won't need to change it
 
-        gc.collect()
+        gc.collect()  # TODO vanno lasciate?
         torch.cuda.empty_cache()
 
         self._update_best_model()
@@ -212,19 +228,20 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
 
         self.load_model(self.temp_file_folder, file_name="_best_model")
 
-        self._clean_temp_folder(temp_file_folder=self.temp_file_folder)
+        # self.load_model("./result_experiments/__Temp_AutoCF_RecommenderWrapper_96339/", "_best_model") serve per fare testing della compute item score
+
+        # self._clean_temp_folder(temp_file_folder=self.temp_file_folder)
 
         print("{}: Training complete".format(self.RECOMMENDER_NAME))
 
     def _prepare_model_for_validation(self):
-        # Most likely you won't need to change this function
+        # Most likely you won't need to change this function # TODO metti embeddings qui nell'oggetto che recupero nella compute item score
         pass
 
     def _update_best_model(self):
         self.save_model(self.temp_file_folder, file_name="_best_model")
 
     def _run_epoch(self, currentEpoch):
-        # TODO ho messo il codice di trainEpoch va sistemata
 
         trnLoader = self.trnLoader
         trnLoader.dataset.negSampling(self.n_items)
@@ -233,9 +250,9 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         for i, tem in enumerate(trnLoader):
             if i % self.fixSteps == 0:
                 sampScores, seeds = self.sampler(
-                    self.allOneAdj, self._model.getEgoEmbeds())  # TODO passa iperparametri
+                    self.allOneAdj, self._model.getEgoEmbeds())
                 encoderAdj, decoderAdj = self.masker(
-                    self.torchBiAdj, seeds)  # TODO passa iperparametri
+                    self.torchBiAdj, seeds)
             ancs, poss, _ = tem
             ancs = ancs.long().to(self.device)
             poss = poss.long().to(self.device)
@@ -259,14 +276,10 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
             self.opt.zero_grad()
             loss.backward()
             self.opt.step()
-            log('Step %d/%d: loss = %.1f, reg = %.1f, cl = %.1f   ' %
+            self._print('Epoch: {}'.format(currentEpoch))
+            log(' Step %d/%d: loss = %.1f, reg = %.1f, cl = %.1f   ' %
                 (i, steps, loss, regLoss, contrastLoss), save=False, oneline=True)
-        ret = dict()
-        ret['Loss'] = epLoss / steps
-        ret['preLoss'] = epPreLoss / steps
-        return ret
 
-    # TODO sistemare
     def save_model(self, folder_path, file_name=None):
 
         if file_name is None:
@@ -284,7 +297,6 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
 
         self._print("Saving complete")
 
-    # TODO sistemare
     def load_model(self, folder_path, file_name=None):
 
         if file_name is None:
@@ -297,11 +309,5 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self._model = ckp['model']
         self.opt = t.optim.Adam(self._model.parameters(),
                                 lr=self.lr, weight_decay=0)
-
-        # TODO If you are using tensorflow, you may instantiate a new session here
-        # TODO reset the default graph to "clean" the tensorflow state
-        # tf.reset_default_graph()
-        # saver = tf.train.Saver()
-        # saver.restore(self.sess, folder_path + file_name + "_session")
 
         self._print("Loading complete")

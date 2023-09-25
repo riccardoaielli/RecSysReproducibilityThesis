@@ -214,7 +214,7 @@ uniformInit = nn.init.uniform
 
 
 class AutoCF(nn.Module):
-    def __init__(self, device, n_users, n_items, lr, epochs, batch, tstBat, latdim, reg, ssl_reg, decay, head, gcn_layer, gt_layer, tstEpoch, seedNum, maskDepth, fixSteps, keepRate, eps):
+    def __init__(self, device, n_users, n_items, lr, epochs, latdim, reg, ssl_reg, decay, head, gcn_layer, gt_layer, tstEpoch, seedNum, maskDepth, fixSteps, keepRate, eps):
         super(AutoCF, self).__init__()
 
         self.uEmbeds = nn.Parameter(init(t.empty(n_users, latdim)))
@@ -241,20 +241,6 @@ class AutoCF(nn.Module):
                 embedsLst.append(embeds)
         embeds = sum(embedsLst)
         return embeds[:self.n_users], embeds[self.n_users:]
-
-    # TODO sistema predict per compute item score
-    def predict(self, trnLoader, torchBiAdj):
-        tstLoader = trnLoader
-        for usr, trnMask in tstLoader:
-            usr = usr.long().to(self.device)
-            trnMask = trnMask.to(self.device)
-            usrEmbeds, itmEmbeds = self._model(
-                torchBiAdj, torchBiAdj)
-            # Penso generi tutte le prediction per un utente solo
-            allPreds = t.mm(usrEmbeds[usr], t.transpose(
-                itmEmbeds, 1, 0)) * (1 - trnMask) - trnMask * 1e8
-
-        return allPreds
 
 
 class GCNLayer(nn.Module):
