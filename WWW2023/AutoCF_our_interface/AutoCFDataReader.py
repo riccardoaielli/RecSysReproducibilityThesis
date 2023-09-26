@@ -60,6 +60,17 @@ class AutoCFDataReader(object):
         URM_test = self.tstMat.tocsr()
         URM_validation = self.valMat.tocsr()
 
+        """ # Riduco la dimensione a 100 utenti per fare testing
+        URM_train = URM_train[0:100, :]
+        URM_test = URM_test[0:100, :]
+        URM_validation = URM_validation[0:100, :]
+
+        self.trnMat = URM_train.tocoo()
+        self.tstMat = URM_test.tocoo()
+        self.valMat = URM_validation.tocoo()
+        print(URM_train.todense())
+        ########################################### """
+
         self.ICM_DICT = {}
         self.UCM_DICT = {}
 

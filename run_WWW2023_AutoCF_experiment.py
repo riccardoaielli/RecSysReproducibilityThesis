@@ -187,11 +187,11 @@ def run_this_algorithm_experiment(dataset_name,
     # Dato originale dell'articolo, non specificato in questo caso
     metric_to_optimize = 'NDCG'
     # Metto 20 che è quello usato dal paper
-    cutoff_to_optimize = 20
+    cutoff_to_optimize = 20  # TODO
     cutoff_list = [1, 5, 10, 20, 30, 40, 50, 100]
     max_total_time = 14*24*60*60  # 14 days # Tempo massimo di training
     n_cases = 50  # Numero di iperparametri che vengono valutati
-    n_processes = 3
+    n_processes = 3  # TODO non so cosa sia
 
     # Usato per fare evaluation sul validation set
     evaluator_validation = EvaluatorHoldout(
@@ -229,12 +229,12 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    use_gpu = False  # TODO metti a True
+    use_gpu = True  # Metti a False per runnare su cpu in locale
 
-    # TODO sistema lista all_hyperparameters, rimuovi quelli che rimangono fissi
+    # TODO controlla che i valori di default siano quelli dichiarati dal paper
     all_hyperparameters = {
         'lr': 1e-3,  # learning_rate
-        'epochs': 1,  # TODO cambia a 100
+        'epochs': 100,
         'latdim': 32,  # embedding_size
         'reg': 1e-7,  # weight decay regularizer
         'ssl_reg': 1,  # contrastive regularizer
@@ -250,6 +250,7 @@ def run_this_algorithm_experiment(dataset_name,
         'eps': 0.2,  # scaled weight as reward
     }
 
+    # TODO vanno ridotti i valori?
     max_epochs_for_earlystopping = 500
     min_epochs_for_earlystopping = 250
 
@@ -269,7 +270,7 @@ def run_this_algorithm_experiment(dataset_name,
                                                  this_model_folder_path,
                                                  use_gpu)
 
-            """ # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
+            """ # Sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
             recommender_instance = AutoCF_RecommenderWrapper(
                 experiment_configuration.URM_train, trnMat, tstMat, valMat, all_hyperparameters["batch"], all_hyperparameters["tstBat"], use_gpu=use_gpu)
             # il ** srotola i componenti del dizionario e li passa come parametri separati
@@ -340,7 +341,7 @@ def run_this_algorithm_experiment(dataset_name,
     ######
     # BASELINE ALGORITHMS
     ######
-
+    # TODO controlla baseline attive, vanno cambiate per singolo esperimento?
     if flag_baselines_tune:
         # Ignora come è scritta. Continene la lista dei modelli che si vogliono usare come baseline del modello, deve essere ridotta a un Top popular, item knn, pure svd e matrix factorization
         _baseline_tune(experiment_configuration, baseline_folder_path)
@@ -427,8 +428,8 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    # , "sparse_gowalla", "sparse_yelp"] # TODO sistema dataset list
-    dataset_list = ["sparse_amazon"]
+    dataset_list = ["sparse_amazon", "sparse_gowalla",
+                    "sparse_yelp"]  # Dataset list
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))

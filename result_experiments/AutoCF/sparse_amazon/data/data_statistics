@@ -2,6 +2,6 @@
 \toprule
 {} &  Interactions &  Items &  Users &   Sparsity \\
 \midrule
-sparse\_amazon &       1380972 &  83761 &  76469 &  9.998E-01 \\
+sparse\_amazon &          2186 &  83761 &    100 &  9.997E-01 \\
 \bottomrule
 \end{tabular}

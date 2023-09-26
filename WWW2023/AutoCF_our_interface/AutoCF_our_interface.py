@@ -151,63 +151,7 @@ class TstData(data.Dataset):
         return self.tstUsrs[idx], np.reshape(self.csrmat[self.tstUsrs[idx]].toarray(), [-1])
 
 
-# Coach
-
-    """ class Coach:
-    def __init__(self, handler, n_users, n_items):
-        self.handler = handler
-
-        print('USER', n_users, 'ITEM', n_items)
-        print('NUM OF INTERACTIONS', self.handler.trnLoader.dataset.__len__())
-        self.metrics = dict()
-        mets = ['Loss', 'preLoss', 'Recall', 'NDCG']
-        for met in mets:
-            self.metrics['Train' + met] = list()
-            self.metrics['Test' + met] = list()
-
-    def makePrint(self, name, ep, reses, save, epochs):
-        ret = 'Epoch %d/%d, %s: ' % (ep, epochs, name)
-        for metric in reses:
-            val = reses[metric]
-            ret += '%s = %.4f, ' % (metric, val)
-            tem = name + metric
-            if save and tem in self.metrics:
-                self.metrics[tem].append(val)
-        ret = ret[:-2] + '  '
-        return ret """
-
-    """ def testEpoch(self):
-        tstLoader = self.handler.tstLoader
-        epLoss, epRecall, epNdcg = [0] * 3
-        i = 0
-        num = tstLoader.dataset.__len__()
-        steps = num // tstBat
-        for usr, trnMask in tstLoader:
-            i += 1
-            usr = usr.long().to(device)
-            trnMask = trnMask.to(device)
-            usrEmbeds, itmEmbeds = self.model(
-                self.handler.torchBiAdj, self.handler.torchBiAdj)
-
-            allPreds = t.mm(usrEmbeds[usr], t.transpose(
-                itmEmbeds, 1, 0)) * (1 - trnMask) - trnMask * 1e8
-            # TODO cambia con cutoff to optimize?
-            _, topLocs = t.topk(allPreds, args.topk)
-            recall, ndcg = self.calcRes(topLocs.cpu().numpy(
-            ), self.handler.tstLoader.dataset.tstLocs, usr)
-            epRecall += recall
-            epNdcg += ndcg
-            log('Steps %d/%d: recall = %.1f, ndcg = %.1f          ' %
-                (i, steps, recall, ndcg), save=False, oneline=True)
-        ret = dict()
-        ret['Recall'] = epRecall / num
-        ret['NDCG'] = epNdcg / num
-        return ret """
-
-
 # MODEL
-# TODO cambiare gli args con gli iperparametri, quelli che avanzano li tolgo dalla lista iperparametri
-# e li faccio diventare degli argomenti da passare a funzione
 
 init = nn.init.xavier_uniform_
 uniformInit = nn.init.uniform

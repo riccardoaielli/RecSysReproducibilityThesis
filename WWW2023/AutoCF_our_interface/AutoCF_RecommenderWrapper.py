@@ -52,6 +52,8 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self.trnMat = trnMat
         self.tstMat = tstMat
         self.valMat = valMat
+        self.batch = batch
+        self.tstBat = tstBat
 
         self.n_users, self.n_items = trnMat.shape
         self.torchBiAdj = makeTorchAdj(
@@ -68,61 +70,43 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self._item_indices = np.arange(0, self.n_items, dtype=np.int)
 
     def _compute_item_score(self, user_id_array, items_to_compute=None):
-        # TODO Fixare in modo personalizzato per il io algoritnmo
-        # Do not modify this
-        # Create the full data structure that will contain the item scores
+
         item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
 
-        if items_to_compute is not None:
-            item_indices = items_to_compute
-        else:
-            item_indices = self._item_indices
+        print(user_id_array)
 
-        usrEmbeds, itmEmbeds = self.model(
-            self.handler.torchBiAdj, self.handler.torchBiAdj)
-
-        allPreds = t.mm(usrEmbeds[user_id_array], t.transpose(
-            itmEmbeds, 1, 0)).detach().cpu().numpy()  # * (1 - trnMask) - trnMask * 1e8
+        allPred = t.mm(self.usrEmbeds[user_id_array], t.transpose(
+            self.itmEmbeds, 1, 0)).detach().cpu().numpy()  # * (1 - trnMask) - trnMask * 1e8
 
         if items_to_compute is not None:
-            item_scores[user_index,
-                        items_to_compute] = allPreds[items_to_compute]
+            item_scores[user_id_array,
+                        items_to_compute] = allPred[user_id_array, items_to_compute]
         else:
-            item_scores[user_index, :] = allPreds
+            item_scores = allPred  # item_scores[user_id_array, :] = allPred
 
-        """ # TODO sistema predict per compute item score
-            def predict(self, tstLoader, torchBiAdj, _model):
-                for usr, trnMask in tstLoader:
-                    usr = usr.long().to(self.device)  # usr è un tensore
-                    trnMask = trnMask.to(self.device)
-                    usrEmbeds, itmEmbeds = _model(
-                        torchBiAdj, torchBiAdj)
-                    # Penso generi tutte le prediction per un utente solo o forse per una batch
-                    allPreds = t.mm(usrEmbeds[usr], t.transpose(
-                        itmEmbeds, 1, 0)) * (1 - trnMask) - trnMask * 1e8
+        if True:
+            print(np.shape(item_scores))
 
-                return allPreds """
+        """ item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
 
         for user_index in range(len(user_id_array)):
 
             user_id = user_id_array[user_index]
 
-            # TODO this predict function should be replaced by whatever code is needed to compute the prediction for a user
-
-            # The prediction requires a list of two arrays user_id, item_id of equal length
-            # To compute the recommendations for a single user, we must provide its index as many times as the
-            # number of items
-            item_score_user = self._model.predict(
-                self.tstLoader, self.torchBiAdj, self._model)
+            item_score_user = t.mm(self.usrEmbeds[user_id], t.transpose(
+                self.itmEmbeds, 1, 0))  # * (1 - trnMask) - trnMask * 1e8
 
             # Do not modify this
             # Put the predictions in the correct items
             if items_to_compute is not None:
-                item_scores[user_index, items_to_compute] = item_score_user.tensor.detach().numpy().ravel()[
-                    items_to_compute]
+                item_scores[user_index,
+                            items_to_compute] = item_score_user[items_to_compute].detach().cpu().numpy()
             else:
                 item_scores[user_index,
-                            :] = item_score_user.tensor.detach().numpy().ravel()
+                            :] = item_score_user.detach().cpu().numpy()
+
+            if True:
+                print(np.shape(item_scores)) """
 
         return item_scores
 
@@ -140,8 +124,6 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
                              n_items=self.n_items,
                              lr=self.lr,
                              epochs=self.epochs,
-                             batch=self.batch,
-                             tstBat=self.tstBat,
                              latdim=self.latdim,
                              reg=self.reg,
                              ssl_reg=self.ssl_reg,
@@ -158,10 +140,7 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
                              ).to(self.device)
 
     def fit(self,
-            # TODO rimuovi ciò che non è un iperparametro e passa come argomento
             epochs=None,
-            batch=None,
-            tstBat=None,
             lr=None,
             latdim=None,
             ssl_reg=None,
@@ -186,11 +165,8 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self.temp_file_folder = self._get_unique_temp_folder(
             input_temp_file_folder=temp_file_folder)
 
-        # TODO rimuovi ciò che non è un iperparametro e passa come argomento
         self.lr = lr
         self.epochs = epochs
-        self.batch = batch
-        self.tstBat = tstBat
         self.latdim = latdim
         self.reg = reg
         self.ssl_reg = ssl_reg
@@ -217,7 +193,7 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         ###############################################################################
         # This is a standard training with early stopping part, most likely you won't need to change it
 
-        gc.collect()  # TODO vanno lasciate?
+        gc.collect()
         torch.cuda.empty_cache()
 
         self._update_best_model()
@@ -228,14 +204,20 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
 
         self.load_model(self.temp_file_folder, file_name="_best_model")
 
-        # self.load_model("./result_experiments/__Temp_AutoCF_RecommenderWrapper_96339/", "_best_model") serve per fare testing della compute item score
+        # serve per fare testing della compute item score
+        # self.load_model("./result_experiments/__Temp_AutoCF_RecommenderWrapper_96339/", "_best_model")
 
-        # self._clean_temp_folder(temp_file_folder=self.temp_file_folder)
+        self._clean_temp_folder(temp_file_folder=self.temp_file_folder)
 
         print("{}: Training complete".format(self.RECOMMENDER_NAME))
 
+        self._prepare_model_for_validation()
+
     def _prepare_model_for_validation(self):
-        # Most likely you won't need to change this function # TODO metti embeddings qui nell'oggetto che recupero nella compute item score
+
+        self.usrEmbeds, self.itmEmbeds = self._model(
+            self.torchBiAdj, self.torchBiAdj)
+
         pass
 
     def _update_best_model(self):
