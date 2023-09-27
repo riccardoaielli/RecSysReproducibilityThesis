@@ -25,9 +25,6 @@ from skopt.space import Real, Integer, Categorical
 from HyperparameterTuning.SearchSingleCase import SearchSingleCase
 from HyperparameterTuning.SearchAbstractClass import SearchInputRecommenderArgs
 
-from WWW2023.AutoCF_our_interface.AutoCF_RecommenderWrapper import AutoCF_RecommenderWrapper
-from WWW2023.AutoCF_our_interface.AutoCFDataReader import AutoCFDataReader
-
 
 def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                          # TODO passare parametri necessari
@@ -50,8 +47,6 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     hyperparameters_dictionary = hyperparameters_dictionary.copy()
 
-    # TODO vedere implementazione funzioni sotto e capire che dati usano per il training
-
     # The SearchSingleCase object will train the method and evaluate it, saving all data in a zip folder
     hyperparameterSearch = SearchSingleCase(recommender_class,  # Addestra il meteodo sul training lo valuta, lo riaddestra su training e validation e infine valuta sul test
                                             evaluator_validation=experiment_configuration.evaluator_validation,
@@ -62,7 +57,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train], # TODO inserire parametri per wrapper
+            experiment_configuration.URM_train],  # TODO inserire parametri per wrapper
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -105,7 +100,8 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                             evaluator_test=experiment_configuration.evaluator_test)
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
-        CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train], # TODO inserire parametri per wrapper, 
+        # TODO inserire parametri per wrapper,
+        CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -140,22 +136,15 @@ def run_this_algorithm_experiment(dataset_name,
     baseline_folder_path = result_folder_path + "baselines/"
     this_model_folder_path = result_folder_path + "this_model/"
 
-    # TODO passare gli argomenti batch e tst_batch Scelgo il dataset da leggere
-    dataset = AutoCFDataReader(dataset_name, batch=, tst_batch=, data_folder_path)
+    # TODO passare gli argomenti necessari al datareader
+    dataset = AutoCFDataReader(dataset_name, data_folder_path)
 
     print('Current dataset is: {}'.format(dataset_name))
 
-    # TODO Recupero i dati dal datareader
+    # TODO Recupero i dati dal datareader URM e altri valori che mi servono
     URM_train = dataset.URM_DICT["URM_train"].copy()
     URM_validation = dataset.URM_DICT["URM_validation"].copy()
     URM_test = dataset.URM_DICT["URM_test"].copy()
-    graph = dataset.graph.clone()
-    train_graph = dataset.train_graph.clone()
-    val_graph = dataset.val_graph.clone()
-    train_edgeloader = dataset.train_edgeloader
-    val_edgeloader = dataset.val_edgeloader
-    test_edgeloader = dataset.test_edgeloader
-    n_test_negs = dataset.n_test_negs
 
     URM_train_last_test = URM_train + URM_validation
 
@@ -191,7 +180,6 @@ def run_this_algorithm_experiment(dataset_name,
     n_cases = 50  # Numero di iperparametri che vengono valutati
     n_processes = 3
 
-    # TODO vanno cmabiati gli evaluator
     # Usato per fare evaluation sul validation set
     evaluator_validation = EvaluatorHoldout(
         URM_validation, cutoff_list=cutoff_list)
@@ -249,34 +237,24 @@ def run_this_algorithm_experiment(dataset_name,
 
     if flag_article_default:
 
-        # TODO cos'è sto fold_index corrisponde in qualche modo ai diversi dataset?
-        for fold_index in range(1, 6):
+        try:
 
-            try:
-                fold_folder = this_model_folder_path + "{}/".format(fold_index)
+            # Funzione che esegue il modello con gli iperparametri settati
+            _run_algorithm_fixed_hyperparameters(experiment_configuration,
+                                                 graph,  # TODO inserisci argomenti necessari per e istanza wrapper
+                                                 RecipeRec_RecommenderWrapper,  # Classe del metodo che deve eseguire
+                                                 all_hyperparameters,
+                                                 max_epochs_for_earlystopping,
+                                                 min_epochs_for_earlystopping,
+                                                 this_model_folder_path,
+                                                 use_gpu)
 
-                # Funzione che esegue il modello con gli iperparametri settati
-                _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                                     graph, # TODO inserisci dati e istanza wrapper
-                                                     train_graph,
-                                                     val_graph,
-                                                     train_edgeloader,
-                                                     val_edgeloader,
-                                                     test_edgeloader,
-                                                     n_test_negs,
-                                                     RecipeRec_RecommenderWrapper,  # Classe del metodo che deve eseguire
-                                                     all_hyperparameters,
-                                                     max_epochs_for_earlystopping,
-                                                     min_epochs_for_earlystopping,
-                                                     fold_folder,
-                                                     use_gpu)
+        except Exception as e:
+            print("On recommender {} Exception {}".format(
+                RecipeRec_RecommenderWrapper, str(e)))
+            traceback.print_exc()
 
-            
-            except Exception as e:
-                print("On recommender {} Exception {}".format(
-                    RecipeRec_RecommenderWrapper, str(e)))
-                traceback.print_exc()
-
+    ## NON DA FARE ##
     if flag_article_tune:
 
         n_users, n_items = URM_train.shape
@@ -314,7 +292,7 @@ def run_this_algorithm_experiment(dataset_name,
                                          }
 
         _run_algorithm_hyperopt(experiment_configuration,
-                                RecipeRec_RecommenderWrapper, #TODO
+                                RecipeRec_RecommenderWrapper,  # TODO
                                 hyperparameters_range_dictionary,
                                 earlystopping_hyperparameters,
                                 this_model_folder_path + "hyperopt/",
@@ -336,17 +314,17 @@ def run_this_algorithm_experiment(dataset_name,
 
     if flag_print_results:
         paper_results = pd.DataFrame(index=[cutoff_to_optimize], columns=[
-                                     'HIT_RATE', 'NDCG']) # TODO
+                                     'HIT_RATE', 'NDCG'])  # TODO
 
-        if dataset_name == 'data':
-            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 32.37 # TODO
+        if dataset_name == 'data':  # TODO
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 32.37  # TODO
             paper_results.loc[cutoff_to_optimize,
-                              'HIT_RATE'] = 45.70  # Nel paper non usa recall, usa Hit Rate e forse anche precision
+                              'HIT_RATE'] = 45.70  # TODO # Nel paper non usa recall, usa Hit Rate e forse anche precision
 
         else:
             paper_results = None
 
-        reproduced_algorithm_list, base_algorithm_list = copy_reproduced_metadata_in_baseline_folder(RecipeRec_RecommenderWrapper, #TODO
+        reproduced_algorithm_list, base_algorithm_list = copy_reproduced_metadata_in_baseline_folder(RecipeRec_RecommenderWrapper,  # TODO
                                                                                                      this_model_folder_path,
                                                                                                      baseline_folder_path,
                                                                                                      paper_results=paper_results,
@@ -362,7 +340,7 @@ def run_this_algorithm_experiment(dataset_name,
 
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "article_metrics"),
                                              metrics_list=[
-                                                 'HIT_RATE', 'NDCG'],
+                                                 'HIT_RATE', 'NDCG'],  # TODO
                                              cutoffs_list=[cutoff_to_optimize],
                                              table_title=None,
                                              highlight_best=True)
@@ -384,8 +362,8 @@ def run_this_algorithm_experiment(dataset_name,
 
 if __name__ == '__main__':
 
-    ALGORITHM_NAME = "RecipeRec"#TODO
-    CONFERENCE_NAME = "IJCAI22"
+    ALGORITHM_NAME = "RecipeRec"  # TODO
+    CONFERENCE_NAME = "IJCAI22"  # TODO
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--baseline_tune',
@@ -404,7 +382,7 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    dataset_list = ["data"] #TODO
+    dataset_list = ["data"]  # TODO
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))
