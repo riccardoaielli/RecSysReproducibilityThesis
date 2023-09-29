@@ -5,8 +5,6 @@ Created on 18/12/18
 
 @author: Maurizio Ferrari Dacrema
 """
-
-
 import gc
 import torch
 from Recommenders.BaseRecommender import BaseRecommender
@@ -14,8 +12,10 @@ from Recommenders.Incremental_Training_Early_Stopping import Incremental_Trainin
 from Recommenders.DataIO import DataIO
 from Recommenders.BaseTempFolder import BaseTempFolder
 
-from WWW2023.AutoCF_our_interface.AutoCF_our_interface import *
+from WWW2023.BM3_our_interface.models.bm3 import *
+from WWW2023.BM3_our_interface.utils.utils import init_seed, get_model, get_trainer, dict2str
 import torch.utils.data as dataloader
+import torch.optim as optim
 
 import numpy as np
 import tensorflow as tf
@@ -26,34 +26,57 @@ import scipy.sparse as sps
 # from Conferences.CIKM.ExampleAlgorithm_github.main import get_model
 
 
-class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopping, BaseTempFolder):
+class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopping, BaseTempFolder):
 
-    RECOMMENDER_NAME = "AutoCF_RecommenderWrapper"  # TODO
+    RECOMMENDER_NAME = "BM3_RecommenderWrapper"
 
-    def __init__(self, URM_train, trnMat, tstMat, valMat, batch, tstBat, verbose=True, use_gpu=True):  # TODO
-        super(AutoCF_RecommenderWrapper, self).__init__(
+    def __init__(self, URM_train, config, train_data, test_data, valid_data, verbose=True, use_gpu=True):
+        super(BM3_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
 
-        if use_gpu:
-            if torch.cuda.is_available():
-                self.device = torch.device("cuda:0")
-                torch.cuda.empty_cache()
-            elif torch.backends.mps.is_available():
-                self.device = "mps"
-            else:
-                print("GPU is not available, using cpu")
-                self.device = torch.device("cpu:0")
-        else:
-            print("GPU is not available, using cpu")
-            self.device = torch.device("cpu:0")
+        self.config = config
+        self.train_data = train_data
+        self.test_data = test_data
+        self.batcvalid_datah = valid_data
 
-        print('device: ', self.device)
+        # Dataset loadded, run model
+        hyper_ret = []
+        val_metric = config['valid_metric'].lower()
+        best_test_value = 0.0
+        idx = best_test_idx = 0
 
-        self.trnMat = trnMat  # TODO
-        self.tstMat = tstMat
-        self.valMat = valMat
-        self.batch = batch
-        self.tstBat = tstBat
+        # hyper-parameters
+        hyper_ls = []
+        if "seed" not in config['hyper_parameters']:
+            config['hyper_parameters'] = ['seed'] + config['hyper_parameters']
+        for i in config['hyper_parameters']:
+            hyper_ls.append(config[i] or [None])
+
+        # TODO Fa il tuning degli iperparametri o meglio penso
+        # combinations
+        combinators = list(product(*hyper_ls))
+        total_loops = len(combinators)
+        for hyper_tuple in combinators:
+            # random seed reset
+            for j, k in zip(config['hyper_parameters'], hyper_tuple):
+                config[j] = k
+            init_seed(config['seed'])
+
+            # TODO trainer loading and initialization, cos'è questo trainer?
+            trainer = get_trainer()(config, model)
+            # debug
+            # model training
+            best_valid_score, best_valid_result, best_test_upon_valid = trainer.fit(
+                train_data, valid_data=valid_data, test_data=test_data, saved=save_model)
+            #########
+            hyper_ret.append(
+                (hyper_tuple, best_valid_result, best_test_upon_valid))
+
+            # save best test
+            if best_test_upon_valid[val_metric] > best_test_value:
+                best_test_value = best_test_upon_valid[val_metric]
+                best_test_idx = idx
+            idx += 1
 
     def _compute_item_score(self, user_id_array, items_to_compute=None):  # TODO
 
@@ -84,25 +107,12 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
 
         torch.cuda.empty_cache()
 
-        self._model = AutoCF(device=self.device,  # TODO# TODO
-                             n_users=self.n_users,
-                             n_items=self.n_items,
-                             lr=self.lr,
-                             epochs=self.epochs,
-                             latdim=self.latdim,
-                             reg=self.reg,
-                             ssl_reg=self.ssl_reg,
-                             decay=self.decay,
-                             head=self.head,
-                             gcn_layer=self.gcn_layer,
-                             gt_layer=self.gt_layer,
-                             tstEpoch=self.tstEpoch,
-                             seedNum=self.seedNum,
-                             maskDepth=self.maskDepth,
-                             fixSteps=self.fixSteps,
-                             keepRate=self.keepRate,
-                             eps=self.eps
-                             ).to(self.device)
+        # set random state of dataloader
+        self.train_data.pretrain_setup()
+
+        self._model = BM3(self.config,
+                          self.train_data,
+                          ).to(self.config['device'])
 
     def fit(self,  # TODO
             epochs=None,
@@ -149,11 +159,15 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         # Inizializza il modello
         self._init_model()
         # Ottimizzatore
-        self.opt = t.optim.Adam(self._model.parameters(),  # TODO# TODO# TODO
-                                lr=self.lr, weight_decay=0)
-        self.masker = RandomMaskSubgraphs(
-            self.device, self.n_users, self.maskDepth, self.n_items, keepRate)
-        self.sampler = LocalGraph(self.device, self.seedNum)
+        self.learner = self.config['learner']
+        if self.learner.lower() == 'adam':
+            self.opt = optim.Adam(
+                self._model.parameters(), lr=self.lr)
+        else:
+            self.logger.warning(
+                'Received unrecognized optimizer, set default Adam optimizer')
+
+        # TODO scheduler
 
         ###############################################################################
         # This is a standard training with early stopping part, most likely you won't need to change it
@@ -190,11 +204,15 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
 
     def _run_epoch(self, currentEpoch):  # TODO
 
+        self._model.train()
+        self.optimizer.zero_grad()
+        self.optimizer.step()
+        self.lr_scheduler.step()
+
         return
 
     def save_model(self, folder_path, file_name=None):  # TODO
-
-        if file_name is None:
+        """ if file_name is None:
             file_name = self.RECOMMENDER_NAME
 
         self._print("Saving model in file '{}'".format(
@@ -207,11 +225,10 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         t.save(data_dict_to_save, folder_path + file_name + '.mod')
         log('Model Saved: %s' % folder_path + file_name)
 
-        self._print("Saving complete")
+        self._print("Saving complete") """
 
     def load_model(self, folder_path, file_name=None):  # TODO
-
-        if file_name is None:
+        """ if file_name is None:
             file_name = self.RECOMMENDER_NAME
 
         self._print("Loading model from file '{}'".format(
@@ -222,4 +239,4 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self.opt = t.optim.Adam(self._model.parameters(),
                                 lr=self.lr, weight_decay=0)
 
-        self._print("Loading complete")
+        self._print("Loading complete") """

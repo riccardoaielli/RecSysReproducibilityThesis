@@ -6,6 +6,7 @@ Created on 15/06/2023
 @author: Anonymized for blind review
 """
 
+import torch
 from optimize_all_baselines import _baseline_tune, _run_algorithm_hyperopt, ExperimentConfiguration, copy_reproduced_metadata_in_baseline_folder
 from Utils.plot_popularity import plot_popularity_bias, save_popularity_statistics
 from data_statistics import save_data_statistics
@@ -24,10 +25,14 @@ from skopt.space import Real, Integer, Categorical
 
 from HyperparameterTuning.SearchSingleCase import SearchSingleCase
 from HyperparameterTuning.SearchAbstractClass import SearchInputRecommenderArgs
+from WWW2023.BM3_our_interface.BM3DataReader import BM3DataReader
+from WWW2023.BM3_our_interface.BM3_RecommenderWrapper import BM3_RecommenderWrapper
 
 
 def _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                         # TODO passare parametri necessari
+                                         train_data,
+                                         test_data,
+                                         valid_data,
                                          recommender_class,
                                          hyperparameters_dictionary,
                                          max_epochs_for_earlystopping,
@@ -136,8 +141,25 @@ def run_this_algorithm_experiment(dataset_name,
     baseline_folder_path = result_folder_path + "baselines/"
     this_model_folder_path = result_folder_path + "this_model/"
 
+    use_gpu = True
+
+    if use_gpu:
+        if torch.cuda.is_available():
+            device = torch.device("cuda:0")
+            torch.cuda.empty_cache()
+        elif torch.backends.mps.is_available():
+            device = "mps"
+        else:
+            print("GPU is not available, using cpu")
+            device = torch.device("cpu:0")
+    else:
+        print("GPU is not available, using cpu")
+        device = torch.device("cpu:0")
+
+    print('device: ', device)
+
     # TODO passare gli argomenti necessari al datareader
-    dataset = AutoCFDataReader(dataset_name, data_folder_path)
+    dataset = BM3DataReader(dataset_name, data_folder_path, device)
 
     print('Current dataset is: {}'.format(dataset_name))
 
@@ -145,12 +167,16 @@ def run_this_algorithm_experiment(dataset_name,
     URM_train = dataset.URM_DICT["URM_train"].copy()
     URM_validation = dataset.URM_DICT["URM_validation"].copy()
     URM_test = dataset.URM_DICT["URM_test"].copy()
+    train_data = dataset.train_data
+    test_data = dataset.test_data
+    valid_data = dataset.valid_data
+    config = dataset.config
 
     URM_train_last_test = URM_train + URM_validation
 
     # Ensure IMPLICIT data and disjoint test-train split
     # Verifica che i dati siano impliciti
-    # assert_implicit_data([URM_train, URM_validation, URM_test])
+    assert_implicit_data([URM_train, URM_validation, URM_test])
     # Verifica che i dati siano disgiunti
     assert_disjoint_matrices([URM_train, URM_validation, URM_test])
 
@@ -216,8 +242,6 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    use_gpu = True
-
     # TODO sistema lista all_hyperparameters
     all_hyperparameters = {
         'learning_rate': 0.005,
@@ -232,6 +256,7 @@ def run_this_algorithm_experiment(dataset_name,
         'gamma': 0.9,
     }
 
+    # TODO cambiare max e min epochs
     max_epochs_for_earlystopping = 500
     min_epochs_for_earlystopping = 250
 
@@ -241,8 +266,11 @@ def run_this_algorithm_experiment(dataset_name,
 
             # Funzione che esegue il modello con gli iperparametri settati
             _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                                 graph,  # TODO inserisci argomenti necessari per e istanza wrapper
-                                                 RecipeRec_RecommenderWrapper,  # Classe del metodo che deve eseguire
+                                                 train_data,
+                                                 test_data,
+                                                 valid_data,
+                                                 config,
+                                                 BM3_RecommenderWrapper,  # Classe del metodo che deve eseguire
                                                  all_hyperparameters,
                                                  max_epochs_for_earlystopping,
                                                  min_epochs_for_earlystopping,
@@ -251,7 +279,7 @@ def run_this_algorithm_experiment(dataset_name,
 
         except Exception as e:
             print("On recommender {} Exception {}".format(
-                RecipeRec_RecommenderWrapper, str(e)))
+                BM3_RecommenderWrapper, str(e)))
             traceback.print_exc()
 
     ## NON DA FARE ##
@@ -292,7 +320,7 @@ def run_this_algorithm_experiment(dataset_name,
                                          }
 
         _run_algorithm_hyperopt(experiment_configuration,
-                                RecipeRec_RecommenderWrapper,  # TODO
+                                BM3_RecommenderWrapper,
                                 hyperparameters_range_dictionary,
                                 earlystopping_hyperparameters,
                                 this_model_folder_path + "hyperopt/",
@@ -324,7 +352,7 @@ def run_this_algorithm_experiment(dataset_name,
         else:
             paper_results = None
 
-        reproduced_algorithm_list, base_algorithm_list = copy_reproduced_metadata_in_baseline_folder(RecipeRec_RecommenderWrapper,  # TODO
+        reproduced_algorithm_list, base_algorithm_list = copy_reproduced_metadata_in_baseline_folder(BM3_RecommenderWrapper,
                                                                                                      this_model_folder_path,
                                                                                                      baseline_folder_path,
                                                                                                      paper_results=paper_results,
@@ -362,8 +390,8 @@ def run_this_algorithm_experiment(dataset_name,
 
 if __name__ == '__main__':
 
-    ALGORITHM_NAME = "RecipeRec"  # TODO
-    CONFERENCE_NAME = "IJCAI22"  # TODO
+    ALGORITHM_NAME = "BM3"
+    CONFERENCE_NAME = "WWW2023"
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--baseline_tune',
@@ -382,7 +410,7 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    dataset_list = ["data"]  # TODO
+    dataset_list = ['baby', 'elec', 'sports']
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))

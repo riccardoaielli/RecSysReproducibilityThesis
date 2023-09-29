@@ -10,11 +10,8 @@ Created on 15/06/2023
 
 
 import pandas as pd
-
 from tqdm import tqdm
-import os
 import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,96 +20,109 @@ from torch.nn import init
 import dgl.function as fn
 from dgl.utils import expand_as_pair
 from dgl.data.graph_serialize import *
-
+from WWW2023.BM3_our_interface.utils.utils import init_seed, get_model, get_trainer, dict2str
+from logging import getLogger
+from itertools import product
+from WWW2023.BM3_our_interface.utils.dataset import RecDataset
+from WWW2023.BM3_our_interface.utils.dataloader import TrainDataLoader, EvalDataLoader
+from WWW2023.BM3_our_interface.utils.logger import init_logger
+from WWW2023.BM3_our_interface.utils.configurator import Config
+from WWW2023.BM3_our_interface.utils.utils import init_seed, get_model, get_trainer, dict2str
+import platform
+import os
+import math
+import torch
+import random
+import numpy as np
+from scipy.sparse import coo_matrix
 # from dgl.nn import EdgeWeightNorm
-
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.metrics import roc_auc_score
-
 # from Data_manager.split_functions.split_train_validation_random_holdout import \
 #    split_train_in_two_percentage_global_sample
-
-import os
-import numpy as np
-import pandas as pd
 import scipy.sparse as sps
-
 from Recommenders.DataIO import DataIO
-
 from scipy import *
 import scipy.linalg as la
 from scipy.sparse import *
 
 
-class RecipeRecDataReader(object):
+class BM3DataReader(object):
 
     URM_DICT = {}
     ICM_DICT = {}
     UCM_DICT = {}
 
-    def __init__(self, dataset_name, pre_splitted_path, freeze_split=False):
-        super(RecipeRecDataReader, self).__init__()
-
-        pre_splitted_path += "data_split/"
-        print(pre_splitted_path)
-        pre_splitted_filename = "splitted_data"
+    def __init__(self, dataset_name, pre_splitted_path, device, freeze_split=False):
+        super(BM3DataReader, self).__init__()
 
         base_ds_path = os.path.join(os.path.dirname(
-            __file__), "../RecipeRec_github")  # TODO
+            __file__), "../BM3_github/data")
         dataset_dir = os.path.join(base_ds_path, dataset_name)
         print(dataset_dir)
 
-        # If directory does not exist, create
-        if not os.path.exists(pre_splitted_path):
-            os.makedirs(pre_splitted_path)
+        # TODO Fai la load da file
+        # TODO setta tutti i valori nll'oggetto
+        # self.graph = graph
 
-        dataIO = DataIO(pre_splitted_path)
+        print(self.__class__.__name__ +
+              ": Pre-splitted data not found, building new one")
+        print(self.__class__.__name__ + ": loading data")
 
-        try:
-            print(self.__class__.__name__ + ": Attempting to load saved data from " +
-                  pre_splitted_path + pre_splitted_filename)
-            for attrib_name, attrib_object in dataIO.load_data(pre_splitted_filename).items():
-                self.__setattr__(attrib_name, attrib_object)
+        # merge config dict
+        self.config = Config(model='BM3', dataset=dataset_name)
+        self.config.final_config_dict['device'] = device
+        init_logger(self.config)
+        logger = getLogger()
+        # print config infor
+        logger.info('██Server: \t' + platform.node())
+        logger.info('██Dir: \t' + os.getcwd() + '\n')
+        logger.info(self.config)
 
-            # TODO Fai la load da file
-            # TODO setta tutti i valori nll'oggetto
-            self.graph = graph
-            self.train_graph = train_graph
-            self.val_graph = val_graph
-            self.train_edgeloader = train_edgeloader
-            self.val_edgeloader = val_edgeloader
-            self.test_edgeloader = test_edgeloader
-            self.n_test_negs = n_test_negs
+        self.config.final_config_dict['data_path'] = base_ds_path
 
-        except FileNotFoundError:
+        # load data
+        dataset = RecDataset(self.config)
+        # print dataset statistics
+        logger.info(str(dataset))
 
-            if freeze_split:
-                raise Exception("Splitted data not found!")
+        train_dataset, valid_dataset, test_dataset = dataset.split()
+        logger.info('\n====Training====\n' + str(train_dataset))
+        logger.info('\n====Validation====\n' + str(valid_dataset))
+        logger.info('\n====Testing====\n' + str(test_dataset))
 
-            print(self.__class__.__name__ +
-                  ": Pre-splitted data not found, building new one")
-            print(self.__class__.__name__ + ": loading data")
+        # wrap into dataloader
+        self.train_data = TrainDataLoader(
+            self.config, train_dataset, batch_size=self.config['train_batch_size'], shuffle=True)
+        self.valid_data = EvalDataLoader(
+            self.config, valid_dataset, additional_dataset=train_dataset, batch_size=self.config['eval_batch_size'])
+        self.test_data = EvalDataLoader(
+            self.config, test_dataset, additional_dataset=train_dataset, batch_size=self.config['eval_batch_size'])
 
-            # TODO FAi la store/load da file
+        # TODO sostituisci il configurator prendendo gli iperparametri da file e settandoli dove necessario
+        # il resto lascerei uguale per semplificarmi la vita
 
-            self.URM_DICT = {
-                "URM_train": URM_train,
-                "URM_test": URM_test,
-                "URM_validation": URM_validation,
-            }
+        URM_train = self.train_data.inter_matrix(form='csr')
+        URM_test = self.valid_data.inter_matrix(form='csr')
+        URM_validation = self.test_data.inter_matrix(form='csr')
 
-            self.ICM_DICT = {}
+        # TODO FAi la store/load da file
 
-            self.UCM_DICT = {}
+        self.URM_DICT = {
+            "URM_train": URM_train,
+            "URM_test": URM_test,
+            "URM_validation": URM_validation,
+        }
 
-            data_dict_to_save = {
-                "ICM_DICT": self.ICM_DICT,
-                "UCM_DICT": self.UCM_DICT,
-                "URM_DICT": self.URM_DICT,
-            }
+        print(URM_train.shape)
+        print(URM_train)
+        print(URM_test.shape)
+        print(URM_test)
+        print(URM_validation.shape)
+        print(URM_validation)
 
-            print('saving data in splitted_data.zip')
-            dataIO.save_data(pre_splitted_filename,
-                             data_dict_to_save=data_dict_to_save)
+        self.ICM_DICT = {}
 
-            print(self.__class__.__name__ + ": loading complete")
+        self.UCM_DICT = {}
+
+        print(self.__class__.__name__ + ": loading complete")
