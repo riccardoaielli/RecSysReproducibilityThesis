@@ -158,7 +158,7 @@ uniformInit = nn.init.uniform
 
 
 class AutoCF(nn.Module):
-    def __init__(self, device, n_users, n_items, lr, epochs, latdim, reg, ssl_reg, decay, head, gcn_layer, gt_layer, tstEpoch, seedNum, maskDepth, fixSteps, keepRate, eps):
+    def __init__(self, device, n_users, n_items, lr, epochs, latdim, reg, ssl_reg, decay, head, gcn_layer, gt_layer, seedNum, maskDepth, fixSteps, keepRate, eps):
         super(AutoCF, self).__init__()
 
         self.uEmbeds = nn.Parameter(init(t.empty(n_users, latdim)))

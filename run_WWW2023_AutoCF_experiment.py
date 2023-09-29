@@ -187,11 +187,11 @@ def run_this_algorithm_experiment(dataset_name,
     # Dato originale dell'articolo, non specificato in questo caso
     metric_to_optimize = 'NDCG'
     # Metto 20 che è quello usato dal paper
-    cutoff_to_optimize = 20  # TODO
+    cutoff_to_optimize = 20
     cutoff_list = [1, 5, 10, 20, 30, 40, 50, 100]
     max_total_time = 14*24*60*60  # 14 days # Tempo massimo di training
     n_cases = 50  # Numero di iperparametri che vengono valutati
-    n_processes = 3  # TODO non so cosa sia
+    n_processes = 3
 
     # Usato per fare evaluation sul validation set
     evaluator_validation = EvaluatorHoldout(
@@ -229,12 +229,12 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    use_gpu = True  # Metti a False per runnare su cpu in locale
+    use_gpu = False  # Metti a False per runnare su cpu
 
-    # TODO controlla che i valori di default siano quelli dichiarati dal paper
+    #  controlla che i valori di default siano quelli dichiarati dal paper
     all_hyperparameters = {
         'lr': 1e-3,  # learning_rate
-        'epochs': 100,
+        'epochs': 100,  # Dovrebbe essere usato solo nel primo giro senza early stopping
         'latdim': 32,  # embedding_size
         'reg': 1e-7,  # weight decay regularizer
         'ssl_reg': 1,  # contrastive regularizer
@@ -242,7 +242,6 @@ def run_this_algorithm_experiment(dataset_name,
         'head': 4,  # number of heads in attention
         'gcn_layer': 2,  # number of gcn layers
         'gt_layer': 1,  # number of graph transformer layers
-        'tstEpoch': 3,  # number of epoch to test while training
         'seedNum': 100,  # number of seeds in patch masking
         'maskDepth': 2,  # depth to mask
         'fixSteps': 10,  # steps to train on the same sampled graph
@@ -250,9 +249,8 @@ def run_this_algorithm_experiment(dataset_name,
         'eps': 0.2,  # scaled weight as reward
     }
 
-    # TODO vanno ridotti i valori?
-    max_epochs_for_earlystopping = 500
-    min_epochs_for_earlystopping = 250
+    max_epochs_for_earlystopping = 100
+    min_epochs_for_earlystopping = 0
 
     if flag_article_default:
 
@@ -341,7 +339,6 @@ def run_this_algorithm_experiment(dataset_name,
     ######
     # BASELINE ALGORITHMS
     ######
-    # TODO controlla baseline attive, vanno cambiate per singolo esperimento?
     if flag_baselines_tune:
         # Ignora come è scritta. Continene la lista dei modelli che si vogliono usare come baseline del modello, deve essere ridotta a un Top popular, item knn, pure svd e matrix factorization
         _baseline_tune(experiment_configuration, baseline_folder_path)

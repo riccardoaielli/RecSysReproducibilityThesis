@@ -131,7 +131,6 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
                              head=self.head,
                              gcn_layer=self.gcn_layer,
                              gt_layer=self.gt_layer,
-                             tstEpoch=self.tstEpoch,
                              seedNum=self.seedNum,
                              maskDepth=self.maskDepth,
                              fixSteps=self.fixSteps,
@@ -148,7 +147,6 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
             head=None,
             gcn_layer=None,
             gt_layer=None,
-            tstEpoch=None,
             seedNum=None,
             reg=None,
             maskDepth=None,
@@ -174,7 +172,6 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         self.head = head
         self.gcn_layer = gcn_layer
         self.gt_layer = gt_layer
-        self.tstEpoch = tstEpoch
         self.seedNum = seedNum
         self.maskDepth = maskDepth
         self.fixSteps = fixSteps
