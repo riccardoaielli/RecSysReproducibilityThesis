@@ -92,7 +92,7 @@ class GeneralRecommender(AbstractRecommender):
         self.v_feat, self.t_feat = None, None
         if not config['end2end'] and config['is_multimodal_model']:
             dataset_path = os.path.abspath(
-                config['data_path'] + config['dataset'])
+                config['data_path'] + '/' + config['dataset'])
             # if file exist?
             v_feat_file_path = os.path.join(
                 dataset_path, config['vision_feature_file'])

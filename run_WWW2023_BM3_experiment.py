@@ -64,7 +64,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, config, train_data, test_data, valid_data],  # TODO inserire parametri per wrapper
+            experiment_configuration.URM_train, config, train_data, test_data, valid_data],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -107,7 +107,6 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                             evaluator_test=experiment_configuration.evaluator_test)
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
-        # TODO inserire parametri per wrapper,
         CONSTRUCTOR_POSITIONAL_ARGS=[
             experiment_configuration.URM_train, config, train_data, test_data, valid_data],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
@@ -161,12 +160,10 @@ def run_this_algorithm_experiment(dataset_name,
 
     print('device: ', device)
 
-    # TODO passare gli argomenti necessari al datareader
     dataset = BM3DataReader(dataset_name, data_folder_path, device)
 
     print('Current dataset is: {}'.format(dataset_name))
 
-    # TODO Recupero i dati dal datareader URM e altri valori che mi servono
     URM_train = dataset.URM_DICT["URM_train"].copy()
     URM_validation = dataset.URM_DICT["URM_validation"].copy()
     URM_test = dataset.URM_DICT["URM_test"].copy()
@@ -174,6 +171,7 @@ def run_this_algorithm_experiment(dataset_name,
     test_data = dataset.test_data
     valid_data = dataset.valid_data
     config = dataset.config
+
     config['device'] = device
 
     URM_train_last_test = URM_train + URM_validation
@@ -200,12 +198,12 @@ def run_this_algorithm_experiment(dataset_name,
                                ["Training data", "Test data"],
                                data_folder_path + "popularity_statistics")
 
-    # TODO Solitamente si cambia solo metric_to_optimize e cutoff_to_optimize
-    metric_to_optimize = 'NDCG'  # Dato originale dell'articolo
-    # TODO Dato originale dell'articolo, metto 10 che è il più alto che hanno usato nel paper
-    cutoff_to_optimize = 10
-    # TODO Liste su cui il modello viene valutato (questa resta sempre uguale)
-    cutoff_list = [1, 3, 5, 7, 10, 20, 30, 40, 50, 100]
+    # Nell'articolo anno usato RECALL per fare l'hyperparameter sensitivity study
+    metric_to_optimize = 'RECALL'
+    # Dato originale dell'articolo
+    cutoff_to_optimize = 20
+    # Liste su cui il modello viene valutato (questa resta sempre uguale)
+    cutoff_list = [1, 5, 10, 20, 30, 40, 50, 100]
     max_total_time = 14*24*60*60  # 14 days # Tempo massimo di training
     n_cases = 50  # Numero di iperparametri che vengono valutati
     n_processes = 3
@@ -342,13 +340,17 @@ def run_this_algorithm_experiment(dataset_name,
 
     if flag_print_results:
         paper_results = pd.DataFrame(index=[cutoff_to_optimize], columns=[
-                                     'HIT_RATE', 'NDCG'])  # TODO
+                                     'RECALL', 'NDCG'])
 
-        if dataset_name == 'data':  # TODO
-            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 32.37  # TODO
-            paper_results.loc[cutoff_to_optimize,
-                              'HIT_RATE'] = 45.70  # TODO # Nel paper non usa recall, usa Hit Rate e forse anche precision
-
+        if dataset_name == 'baby':
+            paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0883
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0383
+        elif dataset_name == 'elec':
+            paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0648
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0302
+        elif dataset_name == 'sports':
+            paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0980
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0438
         else:
             paper_results = None
 
@@ -368,7 +370,7 @@ def run_this_algorithm_experiment(dataset_name,
 
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "article_metrics"),
                                              metrics_list=[
-                                                 'HIT_RATE', 'NDCG'],  # TODO
+                                                 'RECALL', 'NDCG'],
                                              cutoffs_list=[cutoff_to_optimize],
                                              table_title=None,
                                              highlight_best=True)

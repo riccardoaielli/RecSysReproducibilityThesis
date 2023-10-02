@@ -108,14 +108,14 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
                                                                                 hyper_ret[best_test_idx][1]),
                                                                             dict2str(hyper_ret[best_test_idx][2]))) """
 
-    def _compute_item_score(self, user_id_array, items_to_compute=None):  # TODO
+    def _compute_item_score(self, user_id_array, items_to_compute=None):
 
         item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
 
         self._model.eval()
 
         scores = self._model.full_sort_predict(
-            user_id_array).detach().cpu().numpy()  # TODO forse va tolto il detach
+            user_id_array).detach().cpu().numpy()  # TODO
 
         if items_to_compute is not None:  # penso sia sbagliata
             item_scores[user_id_array,
@@ -135,7 +135,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
         torch.cuda.empty_cache()
 
         # set random state of dataloader
-        self.train_data.pretrain_setup()
+        # self.train_data.pretrain_setup() # TODO rimuovo perchè penso che sballi tutti gli score
 
         self._model = BM3(self.config,
                           self.train_data,
@@ -229,14 +229,13 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
 
         self._prepare_model_for_validation()
 
-    def _prepare_model_for_validation(self):  # TODO
-
+    def _prepare_model_for_validation(self):
         pass
 
     def _update_best_model(self):
         self.save_model(self.temp_file_folder, file_name="_best_model")
 
-    def _run_epoch(self, currentEpoch):  # TODO
+    def _run_epoch(self, currentEpoch):
 
         # train
         self._model.pre_epoch_processing()
@@ -252,7 +251,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
 
         return
 
-    def save_model(self, folder_path, file_name=None):  # TODO
+    def save_model(self, folder_path, file_name=None):
         if file_name is None:
             file_name = self.RECOMMENDER_NAME
 
@@ -268,7 +267,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
 
         self._print("Saving complete")
 
-    def load_model(self, folder_path, file_name=None):  # TODO
+    def load_model(self, folder_path, file_name=None):
         if file_name is None:
             file_name = self.RECOMMENDER_NAME
 
