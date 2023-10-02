@@ -61,10 +61,6 @@ class BM3DataReader(object):
         dataset_dir = os.path.join(base_ds_path, dataset_name)
         print(dataset_dir)
 
-        # TODO Fai la load da file
-        # TODO setta tutti i valori nll'oggetto
-        # self.graph = graph
-
         print(self.__class__.__name__ +
               ": Pre-splitted data not found, building new one")
         print(self.__class__.__name__ + ": loading data")
@@ -99,14 +95,9 @@ class BM3DataReader(object):
         self.test_data = EvalDataLoader(
             self.config, test_dataset, additional_dataset=train_dataset, batch_size=self.config['eval_batch_size'])
 
-        # TODO sostituisci il configurator prendendo gli iperparametri da file e settandoli dove necessario
-        # il resto lascerei uguale per semplificarmi la vita
-
         URM_train = self.train_data.inter_matrix(form='csr')
         URM_test = self.valid_data.inter_matrix(form='csr')
         URM_validation = self.test_data.inter_matrix(form='csr')
-
-        # TODO FAi la store/load da file
 
         self.URM_DICT = {
             "URM_train": URM_train,

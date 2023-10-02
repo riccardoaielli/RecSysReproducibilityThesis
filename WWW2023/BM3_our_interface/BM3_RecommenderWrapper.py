@@ -35,7 +35,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
 
     RECOMMENDER_NAME = "BM3_RecommenderWrapper"
 
-    def __init__(self, URM_train, config, train_data, test_data, valid_data, verbose=True, use_gpu=True):
+    def __init__(self, URM_train, config, train_data, test_data, valid_data, verbose=True, use_gpu=False):
         super(BM3_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
 
@@ -117,7 +117,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
         self._model.eval()
 
         scores = self._model.full_sort_predict(
-            user_id_array).detach().cpu().numpy()  # TODO
+            user_id_array).detach().cpu().numpy()
 
         if items_to_compute is not None:  # penso sia sbagliata
             item_scores[user_id_array,
@@ -137,13 +137,13 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
         torch.cuda.empty_cache()
 
         # set random state of dataloader
-        # self.train_data.pretrain_setup() # TODO rimuovo perchè penso che sballi tutti gli score
+        # self.train_data.pretrain_setup() # Rimuovo perchè penso che sballi tutti gli score
 
         self._model = BM3(self.config,
                           self.train_data,
                           ).to(self.config['device'])
 
-    def fit(self,  # TODO
+    def fit(self,
             epochs=None,
             lr=None,
             latdim=None,
@@ -171,7 +171,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
         self.temp_file_folder = self._get_unique_temp_folder(
             input_temp_file_folder=temp_file_folder)
 
-        self.lr = lr  # TODO
+        self.lr = lr
         self.epochs = epochs
         self.latdim = latdim
         self.reg = reg
@@ -201,7 +201,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
             self.logger.warning(
                 'Received unrecognized optimizer, set default Adam optimizer')
 
-        # TODO scheduler
+        # Scheduler
         # fac = lambda epoch: 0.96 ** (epoch / 50)
         lr_scheduler = self.config['learning_rate_scheduler']
         def fac(epoch): return lr_scheduler[0] ** (epoch / lr_scheduler[1])

@@ -244,7 +244,7 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    # TODO sistema lista all_hyperparameters, potrei non usarla come struttura in quanto non dobbiamo fare tuning degli iperparametri
+    # Potrei non usarla come struttura in quanto non dobbiamo fare tuning degli iperparametri
     all_hyperparameters = {
         'lr': config['learning_rate'],
         'dropout': config['dropout'][0],
@@ -254,7 +254,7 @@ def run_this_algorithm_experiment(dataset_name,
 
     }
 
-    # TODO cambiare max uguale a quanto detto nel paper e min prossimo a zero epochs
+    # Max uguale a quanto detto nel paper e min a zero epochs
     max_epochs_for_earlystopping = config['epochs']
     min_epochs_for_earlystopping = 0
 
@@ -413,7 +413,7 @@ if __name__ == '__main__':
     KNN_similarity_to_report_list = ["cosine"]
 
     # , 'elec', 'sports'] # TODO includi tutti i dataset
-    dataset_list = ['baby']
+    dataset_list = ['baby', 'elec', 'sports']
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))
