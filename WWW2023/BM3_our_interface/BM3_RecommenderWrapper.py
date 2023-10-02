@@ -26,6 +26,7 @@ import tensorflow as tf
 import os
 import shutil
 import scipy.sparse as sps
+from torch.nn.utils.clip_grad import clip_grad_norm_
 
 # from Conferences.CIKM.ExampleAlgorithm_github.main import get_model
 
@@ -42,6 +43,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
         self.train_data = train_data
         self.test_data = test_data
         self.batcvalid_datah = valid_data
+        self.clip_grad_norm = self.config['clip_grad_norm']
 
         # Dataset loadded, run model
         hyper_ret = []
@@ -235,21 +237,62 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
     def _update_best_model(self):
         self.save_model(self.temp_file_folder, file_name="_best_model")
 
+    def _train_epoch(self, train_data, epoch_idx, loss_func=None):
+        r"""Train the model in an epoch
+
+        Args:
+            train_data (DataLoader): The train data.
+            epoch_idx (int): The current epoch id.
+            loss_func (function): The loss function of :attr:`model`. If it is ``None``, the loss function will be
+                :attr:`self.model.calculate_loss`. Defaults to ``None``.
+
+        Returns:
+            float/tuple: The sum of loss returned by all batches in this epoch. If the loss in each batch contains
+            multiple parts and the model return these multiple parts loss instead of the sum of loss, It will return a
+            tuple which includes the sum of loss in each part.
+        """
+        self._model.train()
+        loss_func = loss_func or self._model.calculate_loss
+        total_loss = None
+        loss_batches = []
+        for batch_idx, interaction in enumerate(train_data):
+            self.optimizer.zero_grad()
+            losses = loss_func(interaction)
+            if isinstance(losses, tuple):
+                loss = sum(losses)
+                loss_tuple = tuple(per_loss.item() for per_loss in losses)
+                total_loss = loss_tuple if total_loss is None else tuple(
+                    map(sum, zip(total_loss, loss_tuple)))
+            else:
+                loss = losses
+                total_loss = losses.item() if total_loss is None else total_loss + losses.item()
+            if torch.isnan(loss):
+                self.logger.info('Loss is nan at epoch: {}, batch index: {}. Exiting.'.format(
+                    epoch_idx, batch_idx))
+                return loss, torch.tensor(0.0)
+            loss.backward()
+            if self.clip_grad_norm:
+                clip_grad_norm_(self._model.parameters(),
+                                **self.clip_grad_norm)
+            self.optimizer.step()
+            loss_batches.append(loss.detach())
+            # for test
+            # if batch_idx == 0:
+            #    break
+        return total_loss, loss_batches
+
     def _run_epoch(self, currentEpoch):
 
         # train
         self._model.pre_epoch_processing()
-        self._model.train()
-        for batch_idx, interaction in enumerate(self.train_data):
-            self.optimizer.zero_grad()
-            self.optimizer.step()
-        # if torch.is_tensor(train_loss):
-        #     # get nan loss
-        #     break
+        train_loss, _ = self._train_epoch(self.train_data, currentEpoch)
+        # for param_group in self.optimizer.param_groups:
+        #    print('======lr: ', param_group['lr'])
         self.lr_scheduler.step()
-        self._model.post_epoch_processing()
 
-        return
+        post_info = self._model.post_epoch_processing()
+
+        # return self.best_valid_score, self.best_valid_result, self.best_test_upon_valid
 
     def save_model(self, folder_path, file_name=None):
         if file_name is None:

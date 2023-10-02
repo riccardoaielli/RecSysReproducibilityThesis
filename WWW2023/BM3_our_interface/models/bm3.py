@@ -19,9 +19,9 @@ class BM3(GeneralRecommender):
         self.embedding_dim = config['embedding_size']
         self.feat_embed_dim = config['embedding_size']
         self.n_layers = config['n_layers'][1]  # TODO
-        self.reg_weight = config['reg_weight']
+        self.reg_weight = config['reg_weight'][0]  # TODO
         self.cl_weight = config['cl_weight']
-        self.dropout = config['dropout']
+        self.dropout = config['dropout'][0]  # TODO
 
         self.n_nodes = self.n_users + self.n_items
 
