@@ -114,12 +114,12 @@ class BM3DataReader(object):
             "URM_validation": URM_validation,
         }
 
-        print(URM_train.shape)
-        print(URM_train)
-        print(URM_test.shape)
-        print(URM_test)
-        print(URM_validation.shape)
-        print(URM_validation)
+        # print(URM_train.shape)
+        # print(URM_train)
+        # print(URM_test.shape)
+        # print(URM_test)
+        # print(URM_validation.shape)
+        # print(URM_validation)
 
         self.ICM_DICT = {}
 

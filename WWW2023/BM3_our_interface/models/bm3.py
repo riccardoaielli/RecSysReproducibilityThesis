@@ -8,8 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.functional import cosine_similarity
 
-from common.abstract_recommender import GeneralRecommender
-from common.loss import EmbLoss
+from WWW2023.BM3_our_interface.common.abstract_recommender import GeneralRecommender
+from WWW2023.BM3_our_interface.common.loss import EmbLoss
 
 
 class BM3(GeneralRecommender):
@@ -18,7 +18,7 @@ class BM3(GeneralRecommender):
 
         self.embedding_dim = config['embedding_size']
         self.feat_embed_dim = config['embedding_size']
-        self.n_layers = config['n_layers']
+        self.n_layers = config['n_layers'][1]  # TODO
         self.reg_weight = config['reg_weight']
         self.cl_weight = config['cl_weight']
         self.dropout = config['dropout']
@@ -157,7 +157,7 @@ class BM3(GeneralRecommender):
             self.cl_weight * (loss_t + loss_v + loss_tv + loss_vt).mean()
 
     def full_sort_predict(self, interaction):
-        user = interaction[0]
+        user = interaction
         u_online, i_online = self.forward()
         u_online, i_online = self.predictor(u_online), self.predictor(i_online)
         score_mat_ui = torch.matmul(u_online[user], i_online.transpose(0, 1))

@@ -33,11 +33,13 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                          train_data,
                                          test_data,
                                          valid_data,
+                                         config,
                                          recommender_class,
                                          hyperparameters_dictionary,
                                          max_epochs_for_earlystopping,
                                          min_epochs_for_earlystopping,
-                                         output_folder_path, use_gpu):
+                                         output_folder_path,
+                                         use_gpu):
     """
     Train algorithm with the original hyperparameters
     1 - The model is trained with the maximum number of epochs
@@ -62,7 +64,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train],  # TODO inserire parametri per wrapper
+            experiment_configuration.URM_train, config, train_data, test_data, valid_data],  # TODO inserire parametri per wrapper
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -106,7 +108,8 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         # TODO inserire parametri per wrapper,
-        CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train],
+        CONSTRUCTOR_POSITIONAL_ARGS=[
+            experiment_configuration.URM_train, config, train_data, test_data, valid_data],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -141,7 +144,7 @@ def run_this_algorithm_experiment(dataset_name,
     baseline_folder_path = result_folder_path + "baselines/"
     this_model_folder_path = result_folder_path + "this_model/"
 
-    use_gpu = True
+    use_gpu = False
 
     if use_gpu:
         if torch.cuda.is_available():
@@ -171,6 +174,7 @@ def run_this_algorithm_experiment(dataset_name,
     test_data = dataset.test_data
     valid_data = dataset.valid_data
     config = dataset.config
+    config['device'] = device
 
     URM_train_last_test = URM_train + URM_validation
 
@@ -242,23 +246,19 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    # TODO sistema lista all_hyperparameters
+    # TODO sistema lista all_hyperparameters, potrei non usarla come struttura in quanto non dobbiamo fare tuning degli iperparametri
     all_hyperparameters = {
-        'learning_rate': 0.005,
-        'drop_out': 0.1,
-        # TODO cambiare epochs a 100
-        'epochs': 1,
-        'batch_size': 1024,
-        'embedding_size': 128,  # hidden size
-        'reg': 0.1,  # lambda
-        'temperature': 0.07,
-        'attentions_heads': 4,
-        'gamma': 0.9,
+        'lr': config['learning_rate'],
+        'dropout': config['dropout'][0],
+        'epochs': config['epochs'],
+        'embedding_size': config['embedding_size'],  # hidden size
+        'reg': config['reg_weight'][0],  # lambda
+
     }
 
-    # TODO cambiare max e min epochs
-    max_epochs_for_earlystopping = 500
-    min_epochs_for_earlystopping = 250
+    # TODO cambiare max uguale a quanto detto nel paper e min prossimo a zero epochs
+    max_epochs_for_earlystopping = config['epochs']
+    min_epochs_for_earlystopping = 0
 
     if flag_article_default:
 
@@ -410,7 +410,8 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    dataset_list = ['baby', 'elec', 'sports']
+    # , 'elec', 'sports'] # TODO includi tutti i dataset
+    dataset_list = ['baby']
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))
