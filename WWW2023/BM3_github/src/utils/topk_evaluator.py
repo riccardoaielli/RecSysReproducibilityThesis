@@ -13,7 +13,8 @@ from utils.utils import get_local_time
 
 
 # These metrics are typical in topk recommendations
-topk_metrics = {metric.lower(): metric for metric in ['Recall', 'Recall2', 'Precision', 'NDCG', 'MAP']}
+topk_metrics = {metric.lower(): metric for metric in [
+    'Recall', 'Recall2', 'Precision', 'NDCG', 'MAP']}
 
 
 class TopKEvaluator(object):
@@ -48,10 +49,12 @@ class TopKEvaluator(object):
             scores_matrix = scores_tensor.view(len(user_len_list), -1)
         else:
             scores_list = torch.split(scores_tensor, user_len_list, dim=0)
-            scores_matrix = pad_sequence(scores_list, batch_first=True, padding_value=-np.inf)  # nusers x items
+            scores_matrix = pad_sequence(
+                scores_list, batch_first=True, padding_value=-np.inf)  # nusers x items
 
         # get topk
-        _, topk_index = torch.topk(scores_matrix, max(self.topk), dim=-1)  # nusers x k
+        _, topk_index = torch.topk(
+            scores_matrix, max(self.topk), dim=-1)  # nusers x k
 
         return topk_index
 
@@ -71,6 +74,8 @@ class TopKEvaluator(object):
         pos_len_list = eval_data.get_eval_len_list()
         topk_index = torch.cat(batch_matrix_list, dim=0).cpu().numpy()
         # if save recommendation result?
+        # TODO genera i risultati delle top 50 raccomandazioni per tutti gli utenti, per avre gli score di tutti gli utenti su tutti gli item
+        # indagare sui metodi get_eval_items e get_eval_len_list dell'oggetto eval_data e batch_matrix_list (non credo che questa porti allo score)
         if self.save_recom_result and is_test:
             dataset_name = self.config['dataset']
             model_name = self.config['model']
@@ -112,7 +117,8 @@ class TopKEvaluator(object):
         # Convert metric to lowercase
         for m in self.metrics:
             if m.lower() not in topk_metrics:
-                raise ValueError("There is no user grouped topk metric named {}!".format(m))
+                raise ValueError(
+                    "There is no user grouped topk metric named {}!".format(m))
         self.metrics = [metric.lower() for metric in self.metrics]
 
         # Check topk:
@@ -145,5 +151,5 @@ class TopKEvaluator(object):
     def __str__(self):
         mesg = 'The TopK Evaluator Info:\n' + '\tMetrics:[' + ', '.join(
             [topk_metrics[metric.lower()] for metric in self.metrics]) \
-               + '], TopK:[' + ', '.join(map(str, self.topk)) + ']'
+            + '], TopK:[' + ', '.join(map(str, self.topk)) + ']'
         return mesg

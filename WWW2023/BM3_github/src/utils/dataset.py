@@ -14,8 +14,8 @@ import os
 import pandas as pd
 import numpy as np
 import torch
-from utils.data_utils import (ImageResize, ImagePad, image_to_tensor, load_decompress_img_from_lmdb_value)
-import lmdb
+from utils.data_utils import (
+    ImageResize, ImagePad, image_to_tensor, load_decompress_img_from_lmdb_value)
 
 
 class RecDataset(object):
@@ -25,7 +25,8 @@ class RecDataset(object):
 
         # data path & files
         self.dataset_name = config['dataset']
-        self.dataset_path = os.path.abspath(config['data_path']+self.dataset_name)
+        self.dataset_path = os.path.abspath(
+            config['data_path']+self.dataset_name)
 
         # dataframe
         self.uid_field = self.config['USER_ID_FIELD']
@@ -50,16 +51,19 @@ class RecDataset(object):
     def load_inter_graph(self, file_name):
         inter_file = os.path.join(self.dataset_path, file_name)
         cols = [self.uid_field, self.iid_field, self.splitting_label]
-        self.df = pd.read_csv(inter_file, usecols=cols, sep=self.config['field_separator'])
+        self.df = pd.read_csv(inter_file, usecols=cols,
+                              sep=self.config['field_separator'])
         if not self.df.columns.isin(cols).all():
-            raise ValueError('File {} lost some required columns.'.format(inter_file))
+            raise ValueError(
+                'File {} lost some required columns.'.format(inter_file))
 
     def split(self):
         dfs = []
         # splitting into training/validation/test
         for i in range(3):
             temp_df = self.df[self.df[self.splitting_label] == i].copy()
-            temp_df.drop(self.splitting_label, inplace=True, axis=1)        # no use again
+            temp_df.drop(self.splitting_label, inplace=True,
+                         axis=1)        # no use again
             dfs.append(temp_df)
         if self.config['filter_out_cod_start_users']:
             # filtering out new users in val/test sets
@@ -129,5 +133,6 @@ class RecDataset(object):
         info.append('The number of inters: {}'.format(self.inter_num))
         if self.uid_field and self.iid_field:
             sparsity = 1 - self.inter_num / tmp_user_num / tmp_item_num
-            info.append('The sparsity of the dataset: {}%'.format(sparsity * 100))
+            info.append(
+                'The sparsity of the dataset: {}%'.format(sparsity * 100))
         return '\n'.join(info)

@@ -72,13 +72,16 @@ class Config(object):
         cur_dir = os.getcwd()
         cur_dir = os.path.join(cur_dir, 'configs')
         file_list.append(os.path.join(cur_dir, "overall.yaml"))
-        file_list.append(os.path.join(cur_dir, "dataset", "{}.yaml".format(config_dict['dataset'])))
-        file_list.append(os.path.join(cur_dir, "model", "{}.yaml".format(config_dict['model'])))
+        file_list.append(os.path.join(cur_dir, "dataset",
+                         "{}.yaml".format(config_dict['dataset'])))
+        file_list.append(os.path.join(cur_dir, "model",
+                         "{}.yaml".format(config_dict['model'])))
 
         for file in file_list:
             if os.path.isfile(file):
                 with open(file, 'r', encoding='utf-8') as f:
-                    file_config_dict.update(yaml.load(f.read(), Loader=self._build_yaml_loader()))
+                    file_config_dict.update(
+                        yaml.load(f.read(), Loader=self._build_yaml_loader()))
         return file_config_dict
 
     def _build_yaml_loader(self):
@@ -97,8 +100,8 @@ class Config(object):
 
     def _set_default_parameters(self):
         smaller_metric = ['rmse', 'mae', 'logloss']
-        valid_metric = self.final_config_dict['valid_metric'].split('@')[0]
-        self.final_config_dict['valid_metric_bigger'] = False if valid_metric in smaller_metric else True
+        # valid_metric = self.final_config_dict['valid_metric'].split('@')[0]
+        self.final_config_dict['valid_metric_bigger'] = True
         # if seed not in hyper_parameters, then add
         if "seed" not in self.final_config_dict['hyper_parameters']:
             self.final_config_dict['hyper_parameters'] += ['seed']
@@ -106,8 +109,10 @@ class Config(object):
     def _init_device(self):
         use_gpu = self.final_config_dict['use_gpu']
         if use_gpu:
-            os.environ["CUDA_VISIBLE_DEVICES"] = str(self.final_config_dict['gpu_id'])
-        self.final_config_dict['device'] = torch.device("cuda" if torch.cuda.is_available() and use_gpu else "cpu")
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(
+                self.final_config_dict['gpu_id'])
+        self.final_config_dict['device'] = torch.device(
+            "cuda" if torch.cuda.is_available() and use_gpu else "cpu")
 
     def __setitem__(self, key, value):
         if not isinstance(key, str):
@@ -127,7 +132,8 @@ class Config(object):
 
     def __str__(self):
         args_info = '\n'
-        args_info += '\n'.join(["{}={}".format(arg, value) for arg, value in self.final_config_dict.items()])
+        args_info += '\n'.join(["{}={}".format(arg, value)
+                               for arg, value in self.final_config_dict.items()])
         args_info += '\n\n'
         return args_info
 

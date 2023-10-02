@@ -86,9 +86,9 @@ class Trainer(AbstractTrainer):
         self.train_loss_dict = dict()
         self.optimizer = self._build_optimizer()
 
-        #fac = lambda epoch: 0.96 ** (epoch / 50)
+        # fac = lambda epoch: 0.96 ** (epoch / 50)
         lr_scheduler = config['learning_rate_scheduler']        # check zero?
-        fac = lambda epoch: lr_scheduler[0] ** (epoch / lr_scheduler[1])
+        def fac(epoch): return lr_scheduler[0] ** (epoch / lr_scheduler[1])
         scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=fac)
         self.lr_scheduler = scheduler
 
@@ -105,16 +105,22 @@ class Trainer(AbstractTrainer):
             torch.optim: the optimizer
         """
         if self.learner.lower() == 'adam':
-            optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
+            optimizer = optim.Adam(
+                self.model.parameters(), lr=self.learning_rate)
         elif self.learner.lower() == 'sgd':
-            optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate)
+            optimizer = optim.SGD(self.model.parameters(),
+                                  lr=self.learning_rate)
         elif self.learner.lower() == 'adagrad':
-            optimizer = optim.Adagrad(self.model.parameters(), lr=self.learning_rate)
+            optimizer = optim.Adagrad(
+                self.model.parameters(), lr=self.learning_rate)
         elif self.learner.lower() == 'rmsprop':
-            optimizer = optim.RMSprop(self.model.parameters(), lr=self.learning_rate)
+            optimizer = optim.RMSprop(
+                self.model.parameters(), lr=self.learning_rate)
         else:
-            self.logger.warning('Received unrecognized optimizer, set default Adam optimizer')
-            optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
+            self.logger.warning(
+                'Received unrecognized optimizer, set default Adam optimizer')
+            optimizer = optim.Adam(
+                self.model.parameters(), lr=self.learning_rate)
         return optimizer
 
     def _train_epoch(self, train_data, epoch_idx, loss_func=None):
@@ -141,12 +147,14 @@ class Trainer(AbstractTrainer):
             if isinstance(losses, tuple):
                 loss = sum(losses)
                 loss_tuple = tuple(per_loss.item() for per_loss in losses)
-                total_loss = loss_tuple if total_loss is None else tuple(map(sum, zip(total_loss, loss_tuple)))
+                total_loss = loss_tuple if total_loss is None else tuple(
+                    map(sum, zip(total_loss, loss_tuple)))
             else:
                 loss = losses
                 total_loss = losses.item() if total_loss is None else total_loss + losses.item()
             if self._check_nan(loss):
-                self.logger.info('Loss is nan at epoch: {}, batch index: {}. Exiting.'.format(epoch_idx, batch_idx))
+                self.logger.info('Loss is nan at epoch: {}, batch index: {}. Exiting.'.format(
+                    epoch_idx, batch_idx))
                 return loss, torch.tensor(0.0)
             loss.backward()
             if self.clip_grad_norm:
@@ -154,7 +162,7 @@ class Trainer(AbstractTrainer):
             self.optimizer.step()
             loss_batches.append(loss.detach())
             # for test
-            #if batch_idx == 0:
+            # if batch_idx == 0:
             #    break
         return total_loss, loss_batches
 
@@ -174,13 +182,15 @@ class Trainer(AbstractTrainer):
 
     def _check_nan(self, loss):
         if torch.isnan(loss):
-            #raise ValueError('Training loss is nan')
+            # raise ValueError('Training loss is nan')
             return True
 
     def _generate_train_loss_output(self, epoch_idx, s_time, e_time, losses):
-        train_loss_output = 'epoch %d training [time: %.2fs, ' % (epoch_idx, e_time - s_time)
+        train_loss_output = 'epoch %d training [time: %.2fs, ' % (
+            epoch_idx, e_time - s_time)
         if isinstance(losses, tuple):
-            train_loss_output = ', '.join('train_loss%d: %.4f' % (idx + 1, loss) for idx, loss in enumerate(losses))
+            train_loss_output = ', '.join('train_loss%d: %.4f' % (
+                idx + 1, loss) for idx, loss in enumerate(losses))
         else:
             train_loss_output += 'train loss: %.4f' % losses
         return train_loss_output + ']'
@@ -207,14 +217,16 @@ class Trainer(AbstractTrainer):
             if torch.is_tensor(train_loss):
                 # get nan loss
                 break
-            #for param_group in self.optimizer.param_groups:
+            # for param_group in self.optimizer.param_groups:
             #    print('======lr: ', param_group['lr'])
             self.lr_scheduler.step()
 
-            self.train_loss_dict[epoch_idx] = sum(train_loss) if isinstance(train_loss, tuple) else train_loss
+            self.train_loss_dict[epoch_idx] = sum(
+                train_loss) if isinstance(train_loss, tuple) else train_loss
             training_end_time = time()
             train_loss_output = \
-                self._generate_train_loss_output(epoch_idx, training_start_time, training_end_time, train_loss)
+                self._generate_train_loss_output(
+                    epoch_idx, training_start_time, training_end_time, train_loss)
             post_info = self.model.post_epoch_processing()
             if verbose:
                 self.logger.info(train_loss_output)
@@ -230,8 +242,10 @@ class Trainer(AbstractTrainer):
                     max_step=self.stopping_step, bigger=self.valid_metric_bigger)
                 valid_end_time = time()
                 valid_score_output = "epoch %d evaluating [time: %.2fs, valid_score: %f]" % \
-                                     (epoch_idx, valid_end_time - valid_start_time, valid_score)
-                valid_result_output = 'valid result: \n' + dict2str(valid_result)
+                                     (epoch_idx, valid_end_time -
+                                      valid_start_time, valid_score)
+                valid_result_output = 'valid result: \n' + \
+                    dict2str(valid_result)
                 # test
                 _, test_result = self._valid_epoch(test_data)
                 if verbose:
@@ -239,7 +253,9 @@ class Trainer(AbstractTrainer):
                     self.logger.info(valid_result_output)
                     self.logger.info('test result: \n' + dict2str(test_result))
                 if update_flag:
-                    update_output = '██ ' + self.config['model'] + '--Best validation results updated!!!'
+                    update_output = '██ ' + \
+                        self.config['model'] + \
+                        '--Best validation results updated!!!'
                     if verbose:
                         self.logger.info(update_output)
                     self.best_valid_result = valid_result
@@ -253,7 +269,6 @@ class Trainer(AbstractTrainer):
                     break
         return self.best_valid_score, self.best_valid_result, self.best_test_upon_valid
 
-
     @torch.no_grad()
     def evaluate(self, eval_data, is_test=False, idx=0):
         r"""Evaluate the model based on the eval data.
@@ -266,13 +281,21 @@ class Trainer(AbstractTrainer):
         batch_matrix_list = []
         for batch_idx, batched_data in enumerate(eval_data):
             # predict: interaction without item ids
-            scores = self.model.full_sort_predict(batched_data)
+            scores = self.model.full_sort_predict(batched_data)  # TODO
             masked_items = batched_data[1]
             # mask out pos items
+            # TODO penso che questa generi gli score per tutti gli item a batch di 4096 utenti
             scores[masked_items[0], masked_items[1]] = -1e10
+            # TODO cosi si converte in matrice numpy il problema è che devo avere l'index degli utenti da ricostruire
+            scoresNumpy = scores.cpu().numpy()
+            print(scoresNumpy)
+            # penso lo faccia in evaluator.evaluate usando eval_data e la batch_matrix_list
+            # TODO vedere se il sistama del prof con user_list può essere utile per ricostruire l'ordine degli utenti
             # rank and get top-k
-            _, topk_index = torch.topk(scores, max(self.config['topk']), dim=-1)  # nusers x topk
+            _, topk_index = torch.topk(scores, max(
+                self.config['topk']), dim=-1)  # nusers x topk
             batch_matrix_list.append(topk_index)
+        # TODO Non di mio interesse, fa metriche
         return self.evaluator.evaluate(batch_matrix_list, eval_data, is_test=is_test, idx=idx)
 
     def plot_train_loss(self, show=True, save_path=None):
@@ -294,4 +317,3 @@ class Trainer(AbstractTrainer):
             plt.show()
         if save_path:
             plt.savefig(save_path)
-

@@ -4,14 +4,14 @@ use_gpu: True
 seed: [999]
 
 # multi-modal raw features
-data_path: '../data/'
-inter_splitting_label: 'x_label'
+data_path: "../data/"
+inter_splitting_label: "x_label"
 filter_out_cod_start_users: True
 is_multimodal_model: True
 
-checkpoint_dir: 'saved'
+checkpoint_dir: "saved"
 save_recommended_topk: True
-recommend_topk: 'recommend_topk/'
+recommend_topk: "recommend_topk/"
 
 embedding_size: 64
 #embedding_size: 3780
@@ -34,7 +34,6 @@ USER_ID_FIELD: user_id:token
 ITEM_ID_FIELD: item_id:token
 TIME_FIELD: timestamp:float
 field_separator: "\t"
-
 
 # evaluation settings
 metrics: ["Recall", "NDCG", "Precision", "MAP"]
