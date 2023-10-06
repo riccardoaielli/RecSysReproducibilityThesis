@@ -169,7 +169,7 @@ def copy_reproduced_metadata_in_baseline_folder(recommender_class, this_model_fo
                       recommender_class.RECOMMENDER_NAME),
                   "{}_ours_earlystopping".format(recommender_class.RECOMMENDER_NAME)]:
         try:
-            shutil.copyfile("{}/{}/{}_metadata.zip".format(this_model_folder_path, 1, label),
+            shutil.copyfile("{}/{}_metadata.zip".format(this_model_folder_path, label),
                             "{}/{}_metadata.zip".format(baseline_folder_path, label))
             other_algorithm_list.append(recommender_tuple(label))
         except FileNotFoundError:
