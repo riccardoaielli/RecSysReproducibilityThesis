@@ -89,7 +89,7 @@ class BM3DataReader(object):
 
         # wrap into dataloader
         self.train_data = TrainDataLoader(
-            self.config, train_dataset, batch_size=self.config['train_batch_size'], shuffle=False)  # TODO originariamente shuffle=True
+            self.config, train_dataset, batch_size=self.config['train_batch_size'], shuffle=True)  # TODO originariamente shuffle=True
         self.valid_data = EvalDataLoader(
             self.config, valid_dataset, additional_dataset=train_dataset, batch_size=self.config['eval_batch_size'])
         self.test_data = EvalDataLoader(
