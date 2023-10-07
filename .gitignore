@@ -16,6 +16,7 @@ result_experiments/*/*/*
 
 IJCAI22/RecipeRec_github/data/*
 WWW2023/BM3_github/data/*
+WWW2023/MMSSL_github/data/*
 
 **/.pytest_cache/*
 
@@ -122,3 +123,4 @@ ENV/
 # mypy
 .mypy_cache/
 .vscode/launch.json
+**/.DS_Store
