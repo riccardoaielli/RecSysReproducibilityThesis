@@ -124,3 +124,5 @@ ENV/
 .mypy_cache/
 .vscode/launch.json
 **/.DS_Store
+WWW2023/MMSSL_github/MMSSL/logs/*
+WWW2023/MMSSL_our_interface/MMSSL/logs/*
