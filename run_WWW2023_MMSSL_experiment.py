@@ -16,6 +16,7 @@ import os
 import traceback
 import argparse
 import pandas as pd
+import torch
 
 from Evaluation.Evaluator import EvaluatorHoldout
 from Utils.assertions_on_data_for_experiments import assert_implicit_data, assert_disjoint_matrices
@@ -24,15 +25,24 @@ from skopt.space import Real, Integer, Categorical
 
 from HyperparameterTuning.SearchSingleCase import SearchSingleCase
 from HyperparameterTuning.SearchAbstractClass import SearchInputRecommenderArgs
+from WWW2023.MMSSL_our_interface.MMSSLDataReader import MMSSLDataReader
+from WWW2023.MMSSL_our_interface.MMSSL_RecommenderWrapper import MMSSL_RecommenderWrapper
 
 
 def _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                         # TODO passare parametri necessari
+                                         image_feats,
+                                         text_feats,
+                                         image_feat_dim,
+                                         text_feat_dim,
+                                         ui_graph,  # TODO passare parametri necessari
+                                         n_items,
+                                         n_users,
                                          recommender_class,
                                          hyperparameters_dictionary,
                                          max_epochs_for_earlystopping,
                                          min_epochs_for_earlystopping,
-                                         output_folder_path, use_gpu):
+                                         output_folder_path,
+                                         use_gpu):
     """
     Train algorithm with the original hyperparameters
     1 - The model is trained with the maximum number of epochs
@@ -57,7 +67,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train],  # TODO inserire parametri per wrapper
+            experiment_configuration.URM_train, image_feats, text_feats, image_feat_dim, text_feat_dim, ui_graph, n_items, n_users],  # TODO inserire parametri per wrapper
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -101,7 +111,8 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         # TODO inserire parametri per wrapper,
-        CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train],
+        CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train, image_feats,
+                                     text_feats, image_feat_dim, text_feat_dim, ui_graph, n_items, n_users],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -137,7 +148,7 @@ def run_this_algorithm_experiment(dataset_name,
     this_model_folder_path = result_folder_path + "this_model/"
 
     # TODO passare gli argomenti necessari al datareader
-    dataset = AutoCFDataReader(dataset_name, data_folder_path)
+    dataset = MMSSLDataReader(dataset_name, data_folder_path)
 
     print('Current dataset is: {}'.format(dataset_name))
 
@@ -145,12 +156,18 @@ def run_this_algorithm_experiment(dataset_name,
     URM_train = dataset.URM_DICT["URM_train"].copy()
     URM_validation = dataset.URM_DICT["URM_validation"].copy()
     URM_test = dataset.URM_DICT["URM_test"].copy()
+    image_feats = dataset.image_feats
+    text_feats = dataset.text_feats
+    image_feat_dim = dataset.image_feat_dim
+    text_feat_dim = dataset.text_feat_dim
+    ui_graph = dataset.ui_graph
+    n_users = dataset.n_users
+    n_items = dataset.n_items
 
     URM_train_last_test = URM_train + URM_validation
 
-    # Ensure IMPLICIT data and disjoint test-train split
     # Verifica che i dati siano impliciti
-    # assert_implicit_data([URM_train, URM_validation, URM_test])
+    assert_implicit_data([URM_train, URM_validation, URM_test])
     # Verifica che i dati siano disgiunti
     assert_disjoint_matrices([URM_train, URM_validation, URM_test])
 
@@ -216,20 +233,17 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    use_gpu = True
+    use_gpu = False  # TODO
 
     # TODO sistema lista all_hyperparameters
     all_hyperparameters = {
-        'learning_rate': 0.005,
-        'drop_out': 0.1,
-        # TODO cambiare epochs a 100
-        'epochs': 1,
-        'batch_size': 1024,
-        'embedding_size': 128,  # hidden size
-        'reg': 0.1,  # lambda
-        'temperature': 0.07,
-        'attentions_heads': 4,
-        'gamma': 0.9,
+        'mess_dropout': '[0.1, 0.1]',
+        'lr': 0.00055,
+        'emb_dim': 64,
+        'weight_size': '[64, 64]',
+        'n_layers': 2,
+        'regs': '[1e-5,1e-5,1e-2]',
+        'decay': 1e-5,
     }
 
     max_epochs_for_earlystopping = 500
@@ -241,8 +255,14 @@ def run_this_algorithm_experiment(dataset_name,
 
             # Funzione che esegue il modello con gli iperparametri settati
             _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                                 graph,  # TODO inserisci argomenti necessari per e istanza wrapper
-                                                 RecipeRec_RecommenderWrapper,  # Classe del metodo che deve eseguire
+                                                 image_feats,
+                                                 text_feats,
+                                                 image_feat_dim,
+                                                 text_feat_dim,
+                                                 ui_graph,
+                                                 n_items,
+                                                 n_users,  # TODO inserisci argomenti necessari per e istanza wrapper
+                                                 MMSSL_RecommenderWrapper,  # Classe del metodo che deve eseguire
                                                  all_hyperparameters,
                                                  max_epochs_for_earlystopping,
                                                  min_epochs_for_earlystopping,
@@ -251,7 +271,7 @@ def run_this_algorithm_experiment(dataset_name,
 
         except Exception as e:
             print("On recommender {} Exception {}".format(
-                RecipeRec_RecommenderWrapper, str(e)))
+                MMSSL_RecommenderWrapper, str(e)))
             traceback.print_exc()
 
     ## NON DA FARE ##
@@ -292,7 +312,7 @@ def run_this_algorithm_experiment(dataset_name,
                                          }
 
         _run_algorithm_hyperopt(experiment_configuration,
-                                RecipeRec_RecommenderWrapper,  # TODO
+                                MMSSL_RecommenderWrapper,
                                 hyperparameters_range_dictionary,
                                 earlystopping_hyperparameters,
                                 this_model_folder_path + "hyperopt/",
@@ -324,7 +344,7 @@ def run_this_algorithm_experiment(dataset_name,
         else:
             paper_results = None
 
-        reproduced_algorithm_list, base_algorithm_list = copy_reproduced_metadata_in_baseline_folder(RecipeRec_RecommenderWrapper,  # TODO
+        reproduced_algorithm_list, base_algorithm_list = copy_reproduced_metadata_in_baseline_folder(MMSSL_RecommenderWrapper,
                                                                                                      this_model_folder_path,
                                                                                                      baseline_folder_path,
                                                                                                      paper_results=paper_results,
@@ -362,8 +382,8 @@ def run_this_algorithm_experiment(dataset_name,
 
 if __name__ == '__main__':
 
-    ALGORITHM_NAME = "RecipeRec"  # TODO
-    CONFERENCE_NAME = "IJCAI22"  # TODO
+    ALGORITHM_NAME = "MMSSL"
+    CONFERENCE_NAME = "WWW2023"
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--baseline_tune',
@@ -382,7 +402,7 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    dataset_list = ["data"]  # TODO
+    dataset_list = ["baby"]  # , "sports", "tiktok", "allrecipes"]  # TODO
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))
