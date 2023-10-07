@@ -9,4 +9,3 @@ cl_weight: 2.0
 use_neg_sampling: False
 
 hyper_parameters: ["n_layers", "reg_weight", "dropout"]
-
