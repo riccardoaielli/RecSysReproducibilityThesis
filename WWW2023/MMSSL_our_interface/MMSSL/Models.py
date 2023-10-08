@@ -14,20 +14,23 @@ from WWW2023.MMSSL_our_interface.MMSSL.utility.norm import build_sim, build_knn_
 
 
 class MMSSL(nn.Module):
-    def __init__(self, n_users, n_items, embedding_dim, weight_size, mess_dropout, image_feats, text_feats, config):
+    def __init__(self, n_users, n_items, embedding_dim, weight_size, image_feats, text_feats, config):
 
         super().__init__()
         self.n_users = n_users
         self.n_items = n_items
         self.embedding_dim = embedding_dim
         self.weight_size = weight_size
+        self.image_feats = image_feats
+        self.text_feats = text_feats
+        self.config = config
         self.n_ui_layers = len(self.weight_size)
         self.weight_size = [self.embedding_dim] + self.weight_size
 
         self.image_trans = nn.Linear(
-            image_feats.shape[1], self.config['embed_size'])
+            self.image_feats.shape[1], self.config['embed_size'])
         self.text_trans = nn.Linear(
-            text_feats.shape[1], self.config['embed_size'])
+            self.text_feats.shape[1], self.config['embed_size'])
         nn.init.xavier_uniform_(self.image_trans.weight)
         nn.init.xavier_uniform_(self.text_trans.weight)
         self.encoder = nn.ModuleDict()
@@ -248,19 +251,19 @@ class MMSSL(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, dim):
+    def __init__(self, dim, config):
         super(Discriminator, self).__init__()
 
         self.net = nn.Sequential(
             nn.Linear(dim, int(dim/4)),
             nn.LeakyReLU(True),
             nn.BatchNorm1d(int(dim/4)),
-            nn.Dropout(self.config['G_drop1']),
+            nn.Dropout(config['G_drop1']),
 
             nn.Linear(int(dim/4), int(dim/8)),
             nn.LeakyReLU(True),
             nn.BatchNorm1d(int(dim/8)),
-            nn.Dropout(self.config['G_drop2']),
+            nn.Dropout(config['G_drop2']),
 
             nn.Linear(int(dim/8), 1),
             nn.Sigmoid()

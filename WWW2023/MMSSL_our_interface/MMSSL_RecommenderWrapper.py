@@ -9,7 +9,7 @@ Created on 18/12/18
 
 import gc
 import torch
-import tqdm
+from tqdm import tqdm
 import sys
 import math
 from Recommenders.BaseRecommender import BaseRecommender
@@ -19,6 +19,8 @@ from Recommenders.BaseTempFolder import BaseTempFolder
 
 import torch.utils.data as dataloader
 import torch.optim as optim
+import random as rd
+from torch import autograd
 
 import numpy as np
 import tensorflow as tf
@@ -33,7 +35,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
     RECOMMENDER_NAME = "MMSSL_RecommenderWrapper"
 
-    def __init__(self, URM_train, image_feats, text_feats, image_feat_dim, text_feat_dim, ui_graph, n_items, n_users, verbose=True, use_gpu=True):  # TODO
+    def __init__(self, URM_train, image_feats, text_feats, image_feat_dim, text_feat_dim, ui_graph, test_set, val_set, exist_users, train_items, config, verbose=True, use_gpu=True):  # TODO
         super(MMSSL_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
 
@@ -52,112 +54,34 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
         print('device: ', self.device)
 
-        self.config = dict()
+        self.config = config
         self.config['device'] = self.device
-        self.config['n_users'] = n_users
-        self.config['n_items'] = n_items
-
-        # useless
-        self.config['verbose'] = True
-        self.config['lambda_coeff'] = 0.9
-        self.config['early_stopping_patience'] = 7
-        self.config['layers'] = 1
-        self.config['mess_dropout'] = '[0.1, 0.1]'
-        self.config['sparse'] = 1
-        self.config['test_flag'] = 'part'
-        self.config['metapath_threshold'] = 2
-        self.config['sc'] = 1.0
-        self.config['ssl_c_rate'] = 1.3
-        self.config['ssl_s_rate'] = 0.8
-        self.config['g_rate'] = 0.000029
-        self.config['sample_num'] = 1
-        self.config['sample_num_neg'] = 1
-        self.config['sample_num_ii'] = 8
-        self.config['sample_num_co'] = 2
-        self.config['mask_rate'] = 0.75
-        self.config['gss_rate'] = 0.85
-        self.config['anchor_rate'] = 0.75
-        self.config['feat_reg_decay'] = 1e-5
-        self.config['ad1_rate'] = 0.2
-        self.config['ad2_rate'] = 0.2
-        self.config['ad_sampNum'] = 1
-        self.config['ad_topk_multi_num'] = 100
-        self.config['fake_gene_rate'] = 0.0001
-        self.config['ID_layers'] = 1
-        self.config['reward_rate'] = 1
-        self.config['G_embed_size'] = 64
-        self.config['model_num'] = 2
-        self.config['negrate'] = 0.01
-        self.config['cis'] = 25
-        self.config['confidence'] = 0.5
-        self.config['ii_it'] = 15
-        self.config['isload'] = False
-        self.config['isJustTest'] = False
-
-        # train
-        self.config['seed'] = 2022
-        self.config['epoch'] = 1000
-        self.config['embed_size'] = 64
-        self.config['batch_size'] = 1024
-        self.config['D_lr'] = 3e-4  # TODO togli hardcoded
-        self.config['topk'] = 10
-        self.config['cf_model'] = 'slmrec'
-        self.config['cl_rate'] = 0.03
-        self.config['norm_type'] = 'sym'
-        self.config['Ks'] = '[10, 20, 50]'
-        self.config['regs'] = '[1e-5,1e-5,1e-2]'
-        self.config['lr'] = 0.00055
-        self.config['emm'] = 1e-3
-        self.config['L2_alpha'] = 1e-3
-        self.config['weight_decay'] = 1e-4
-
-        # GNN
-        self.config['drop_rate'] = 0.2
-        self.config['model_cat_rate'] = 0.55
-        self.config['gnn_cat_rate'] = 0.55
-        self.config['id_cat_rate'] = 0.36
-        self.config['id_cat_rate1'] = 0.36
-        self.config['head_num'] = 4
-        self.config['dgl_nei_num'] = 8
-
-        # GAN
-        self.config['weight_size'] = '[64, 64]'
-        self.config['G_rate'] = 0.0001
-        self.config['G_drop1'] = 0.31
-        self.config['G_drop2'] = 0.5
-        self.config['gp_rate'] = 1
-        self.config['real_data_tau'] = 0.005
-        self.config['ui_pre_scale'] = 100
-
-        # cl
-        self.config['T'] = 1
-        self.config['tau'] = 0.5
-        self.config['geneGraph_rate'] = 0.1
-        self.config['geneGraph_rate_pos'] = 2
-        self.config['geneGraph_rate_neg'] = -1
-        self.config['m_topk_rate'] = 0.0001
-        self.config['log_log_scale'] = 0.00001
+        self.n_users = self.config['n_users']
+        self.n_items = self.config['n_items']
+        self.n_train = self.config['n_train']
 
         self.image_feats = image_feats
         self.text_feats = text_feats
         self.image_feat_dim = image_feat_dim  # TODO forse posso mettere in config
         self.text_feat_dim = text_feat_dim  # TODO forse posso mettere in config
         self.ui_graph = self.ui_graph_raw = ui_graph
+        self.test_set = test_set
+        self.val_set = val_set
+        self.exist_users = exist_users
+        self.train_items = train_items
+        # self.regs = eval(self.config['regs'])
+        self.decay = self.config['regs'][0]
 
     def _compute_item_score(self, user_id_array, items_to_compute=None):  # TODO
 
         item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
 
-        print(user_id_array)
-
-        allPred = t.mm(self.usrEmbeds[user_id_array], t.transpose(
-            self.itmEmbeds, 1, 0)).detach().cpu().numpy()  # * (1 - trnMask) - trnMask * 1e8
-
         if items_to_compute is not None:
-            item_scores[user_id_array,
-                        items_to_compute] = allPred[user_id_array, items_to_compute]
+            item_scores = torch.matmul(self.ua_embeddings[user_id_array], torch.transpose(
+                self.ia_embeddings[items_to_compute], 0, 1)).detach().cpu().numpy()
         else:
-            item_scores = allPred  # item_scores[user_id_array, :] = allPred
+            item_scores = torch.matmul(self.ua_embeddings[user_id_array], torch.transpose(
+                self.ia_embeddings, 0, 1)).detach().cpu().numpy()  # item_scores[user_id_array, :] = allPred
 
         if True:
             print(np.shape(item_scores))
@@ -191,20 +115,15 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
         self._model = MMSSL(self.n_users,
                             self.n_items,
-                            self.emb_dim,
-                            self.weight_size,
-                            self.mess_dropout,
+                            self.config['embed_size'],
+                            self.config['weight_size'],
                             self.image_feats,
                             self.text_feats,
                             self.config,  # TODO# TODO
                             ).to(self.config['device'])
 
     def fit(self,  # TODO
-            emb_dim=None,
-            weight_size=None,
-            mess_dropout=None,
-            lr=None,
-
+            epochs=None,
             temp_file_folder=None,
             # These are standard
             **earlystopping_kwargs
@@ -214,21 +133,17 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
         self.temp_file_folder = self._get_unique_temp_folder(
             input_temp_file_folder=temp_file_folder)
 
-        self.lr = lr
-        self.emb_dim = emb_dim
-        self.weight_size = weight_size
-        self.mess_dropout = mess_dropout  # TODO
-
         # Inizializza il modello
         self._init_model()
         # Ottimizzatore
-        self.D = Discriminator(self.n_items).to(self.config['device'])
+        self.D = Discriminator(self.n_items, self.config).to(
+            self.config['device'])
         self.D.apply(self.weights_init)
         self.optim_D = optim.Adam(
             self.D.parameters(), lr=self.config['D_lr'], betas=(0.5, 0.9))
 
         self.optimizer_D = optim.AdamW(
-            [{'params': self._model.parameters()},], lr=self.lr)
+            [{'params': self._model.parameters()},], lr=self.config['lr'])
 
         def fac(epoch): return 0.96 ** (epoch / 50)
         self.scheduler_D = optim.lr_scheduler.LambdaLR(
@@ -242,7 +157,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
         self._update_best_model()
 
-        self._train_with_early_stopping(self.config['epoch'],
+        self._train_with_early_stopping(epochs,
                                         algorithm_name=self.RECOMMENDER_NAME,
                                         **earlystopping_kwargs)
 
@@ -258,6 +173,10 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
         self._prepare_model_for_validation()
 
     def _prepare_model_for_validation(self):
+
+        with torch.no_grad():
+            self.ua_embeddings, self.ia_embeddings, *rest = self._model(
+                self.ui_graph, self.iu_graph, self.image_ui_graph, self.image_iu_graph, self.text_ui_graph, self.text_iu_graph)
 
         pass
 
@@ -281,8 +200,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
         for idx in tqdm(range(n_batch)):
             self._model.train()
-            users, pos_items, neg_items = data_generator.sample()
-            sample_time += time() - sample_t1
+            users, pos_items, neg_items = self.sample()
 
             with torch.no_grad():
                 ua_embeddings, ia_embeddings, image_item_embeds, text_item_embeds, image_user_embeds, text_user_embeds, _, _, _, _, _, _ \
@@ -370,9 +288,9 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
             batch_contrastive_loss = 0
             batch_contrastive_loss1 = self.batched_contrastive_loss(
-                G_image_user_id[users], G_user_emb[users])
+                G_image_user_id[users], G_user_emb[users], batch_size=self.config['batch_size'])
             batch_contrastive_loss2 = self.batched_contrastive_loss(
-                G_text_user_id[users], G_user_emb[users])
+                G_text_user_id[users], G_user_emb[users], batch_size=self.config['batch_size'])
 
             batch_contrastive_loss = batch_contrastive_loss1 + batch_contrastive_loss2
 
@@ -403,23 +321,9 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
             print('ERROR: loss is nan.')
             sys.exit()
 
-        t2 = time()
-        users_to_test = list(data_generator.test_set.keys())
-        users_to_val = list(data_generator.val_set.keys())
-        ret = self.test(users_to_val, is_val=True)
-        training_time_list.append(t2 - t1)
-
-        t3 = time()
-
-        loss_loger.append(loss)
-        rec_loger.append(ret['recall'].data)
-        pre_loger.append(ret['precision'].data)
-        ndcg_loger.append(ret['ndcg'].data)
-        hit_loger.append(ret['hit_ratio'].data)
-
-        line_var_recall.append(ret['recall'][1])
-        line_var_precision.append(ret['precision'][1])
-        line_var_ndcg.append(ret['ndcg'][1])
+        # users_to_test = list(self.test_set.keys())
+        # users_to_val = list(self.val_set.keys())
+        # ret = self.test(users_to_val, is_val=True)
 
         return
 
@@ -449,8 +353,11 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
         ckp = torch.load(folder_path + file_name + '.mod')
         self._model = ckp['model']
-        self.opt = torch.optim.Adam(self._model.parameters(),
-                                    lr=self.lr, weight_decay=0)
+        self.optim_D = optim.Adam(
+            self.D.parameters(), lr=self.config['D_lr'], betas=(0.5, 0.9))
+
+        self.optimizer_D = optim.AdamW(
+            [{'params': self._model.parameters()},], lr=self.config['lr'])
 
         self._print("Loading complete")
 
@@ -492,7 +399,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
         regularizer = 1./2*(users**2).sum() + 1./2 * \
             (pos_items**2).sum() + 1./2*(neg_items**2).sum()
-        regularizer = regularizer / self.batch_size
+        regularizer = regularizer / self.config['batch_size']
 
         maxi = F.logsigmoid(pos_scores - neg_scores)
         mf_loss = -torch.mean(maxi)
@@ -520,7 +427,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
         u_sim_list = []
 
         for i_b in range(num_batches):
-            index = indices[i_b * self.config['batch_size']:(i_b + 1) * self.config['batch_size']]
+            index = indices[i_b * self.config['batch_size']                            :(i_b + 1) * self.config['batch_size']]
             sim = torch.mm(topk_u, item_final[index].T)
             sim_gt = torch.multiply(sim, (1-u_ui[:, index]))
             u_sim_list.append(sim_gt)
@@ -545,6 +452,13 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
         feat_reg = feat_reg / self.n_items
         feat_emb_loss = self.config['feat_reg_decay'] * feat_reg
         return feat_emb_loss
+
+    def sim(self, z1, z2):
+        z1 = F.normalize(z1)
+        z2 = F.normalize(z2)
+        # z1 = z1/((z1**2).sum(-1) + 1e-8)
+        # z2 = z2/((z2**2).sum(-1) + 1e-8)
+        return torch.mm(z1, z2.t())
 
     def batched_contrastive_loss(self, z1, z2, batch_size=1024):
 
@@ -579,3 +493,72 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
         loss_vec = torch.cat(losses)
         return loss_vec.mean()
+
+    def sample(self):
+        if self.config['batch_size'] <= self.n_users:
+            users = rd.sample(self.exist_users, self.config['batch_size'])
+        else:
+            users = [rd.choice(self.exist_users)
+                     for _ in range(self.config['batch_size'])]
+        # users = self.exist_users[:]
+
+        def sample_pos_items_for_u(u, num):
+            pos_items = self.train_items[str(u)]
+            n_pos_items = len(pos_items)
+            pos_batch = []
+            while True:
+                if len(pos_batch) == num:
+                    break
+                pos_id = np.random.randint(low=0, high=n_pos_items, size=1)[0]
+                pos_i_id = pos_items[pos_id]
+
+                if pos_i_id not in pos_batch:
+                    pos_batch.append(pos_i_id)
+            return pos_batch
+
+        def sample_neg_items_for_u(u, num):
+            neg_items = []
+            while True:
+                if len(neg_items) == num:
+                    break
+                neg_id = np.random.randint(low=0, high=self.n_items, size=1)[0]
+                if neg_id not in self.train_items[str(u)] and neg_id not in neg_items:
+                    neg_items.append(neg_id)
+            return neg_items
+
+        def sample_neg_items_for_u_from_pools(u, num):
+            neg_items = list(
+                set(self.neg_pools[u]) - set(self.train_items[str(u)]))
+            return rd.sample(neg_items, num)
+
+        pos_items, neg_items = [], []
+        for u in users:
+            pos_items += sample_pos_items_for_u(u, 1)
+            neg_items += sample_neg_items_for_u(u, 1)
+            # neg_items += sample_neg_items_for_u(u, 3)
+        return users, pos_items, neg_items
+
+    def gradient_penalty(self, D, xr, xf):
+
+        LAMBDA = 0.3
+
+        xf = xf.detach()
+        xr = xr.detach()
+
+        alpha = torch.rand(
+            self.config['batch_size']*2, 1).to(self.config['device'])
+        alpha = alpha.expand_as(xr)
+
+        interpolates = alpha * xr + ((1 - alpha) * xf)
+        interpolates.requires_grad_()
+
+        disc_interpolates = D(interpolates)
+
+        gradients = autograd.grad(outputs=disc_interpolates, inputs=interpolates,
+                                  grad_outputs=torch.ones_like(
+                                      disc_interpolates),
+                                  create_graph=True, retain_graph=True, only_inputs=True)[0]
+
+        gp = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * LAMBDA
+
+        return gp

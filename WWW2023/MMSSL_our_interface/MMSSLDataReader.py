@@ -209,6 +209,11 @@ class MMSSLDataReader(object):
                 "ui_graph": self.ui_graph,
                 "n_items": self.n_items,
                 "n_users": self.n_users,
+                "n_train": self.n_train,
+                "test_set": self.test_set,
+                "val_set": self.val_set,
+                "exist_users": self.exist_users,
+                "train_items": self.train_items,
             }
 
             print('saving data in splitted_data.zip')
