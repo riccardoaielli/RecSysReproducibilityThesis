@@ -1,7 +1,0 @@
-\begin{tabular}{lrrrl}
-\toprule
-{} &  Interactions &  Items &  Users &   Sparsity \\
-\midrule
-amazon-book &       2780441 &  96421 & 109730 &  9.997E-01 \\
-\bottomrule
-\end{tabular}

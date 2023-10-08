@@ -1,7 +1,0 @@
-\begin{tabular}{lrrrl}
-\toprule
-{} &  Interactions &  Items &  Users &   Sparsity \\
-\midrule
-movielens100k &        100000 &   1682 &    943 &  9.370E-01 \\
-\bottomrule
-\end{tabular}

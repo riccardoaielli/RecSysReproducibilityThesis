@@ -1,7 +1,0 @@
-\begin{tabular}{lrrrl}
-\toprule
-{} &  Interactions &  Items &  Users &   Sparsity \\
-\midrule
-gowalla &        900713 &  40988 &  29858 &  9.993E-01 \\
-\bottomrule
-\end{tabular}

@@ -1,7 +1,0 @@
-\begin{tabular}{lrrrl}
-\toprule
-{} &  Interactions &  Items &  Users &   Sparsity \\
-\midrule
-pinterest &       1000154 &   9836 &  37501 &  9.973E-01 \\
-\bottomrule
-\end{tabular}

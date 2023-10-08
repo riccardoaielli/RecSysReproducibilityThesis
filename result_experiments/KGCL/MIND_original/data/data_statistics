@@ -1,7 +1,0 @@
-\begin{tabular}{lrrrl}
-\toprule
-{} &  Interactions &  Items &  Users &   Sparsity \\
-\midrule
-MIND &       2545327 &  48957 & 300000 &  9.998E-01 \\
-\bottomrule
-\end{tabular}

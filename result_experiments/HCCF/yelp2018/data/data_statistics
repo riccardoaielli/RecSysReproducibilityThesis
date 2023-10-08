@@ -1,7 +1,0 @@
-\begin{tabular}{lrrrl}
-\toprule
-{} &  Interactions &  Items &  Users &   Sparsity \\
-\midrule
-yelp2018 &       1527326 &  24734 &  29601 &  9.979E-01 \\
-\bottomrule
-\end{tabular}

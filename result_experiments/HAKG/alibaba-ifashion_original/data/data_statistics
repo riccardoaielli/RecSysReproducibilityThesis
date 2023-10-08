@@ -1,7 +1,0 @@
-\begin{tabular}{lrrrl}
-\toprule
-{} &  Interactions &  Items &  Users &   Sparsity \\
-\midrule
-alibaba-ifashion &       1781093 &  30040 & 114737 &  9.995E-01 \\
-\bottomrule
-\end{tabular}
