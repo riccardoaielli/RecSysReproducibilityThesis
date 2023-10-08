@@ -350,20 +350,20 @@ def run_this_algorithm_experiment(dataset_name,
 
     if flag_print_results:
         paper_results = pd.DataFrame(index=[cutoff_to_optimize], columns=[
-                                     'NDCG', 'RECALL'])
+                                     'RECALL', 'NDCG'])
 
         if dataset_name == "sparse_amazon":
+            paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.1277
             paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0879
-            paper_results.loc[cutoff_to_optimize,
-                              'RECALL'] = 0.1277
 
         elif dataset_name == "sparse_gowalla":
-            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.1645
             paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.2538
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.1645
 
         elif dataset_name == "sparse_yelp":
-            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0437
             paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0869
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0437
+
         else:
             paper_results = None
 
@@ -383,7 +383,7 @@ def run_this_algorithm_experiment(dataset_name,
 
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "article_metrics"),
                                              metrics_list=[
-                                                 'NDCG', 'RECALL'],
+                                                 'RECALL', 'NDCG'],
                                              cutoffs_list=[cutoff_to_optimize],
                                              table_title=None,
                                              highlight_best=True)
@@ -391,9 +391,9 @@ def run_this_algorithm_experiment(dataset_name,
         result_loader.generate_latex_results(
             result_folder_path + "{}_{}_{}_latex_results.txt".format(
                 ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
-            metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST",
-                          "COVERAGE_ITEM", "DIVERSITY_GINI", "SHANNON_ENTROPY"],
-            cutoffs_list=cutoff_list,
+            metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
+                          "DIVERSITY_GINI", "SHANNON_ENTROPY"],  # TODO sistema beyond_accuracy_metrics
+            cutoffs_list=[10, 20],
             table_title=None,
             highlight_best=True)
 
