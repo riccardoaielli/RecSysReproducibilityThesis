@@ -35,14 +35,12 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
 
     RECOMMENDER_NAME = "BM3_RecommenderWrapper"
 
-    def __init__(self, URM_train, config, train_data, test_data, valid_data, verbose=True, use_gpu=False):
+    def __init__(self, URM_train, config, train_data, verbose=True, use_gpu=False):
         super(BM3_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
 
         self.config = config
         self.train_data = train_data
-        self.test_data = test_data
-        self.batcvalid_datah = valid_data
         self.clip_grad_norm = self.config['clip_grad_norm']
 
         # Dataset loadded, run model
@@ -51,7 +49,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
         best_test_value = 0.0
         idx = best_test_idx = 0
 
-        logger = getLogger()
+        self.logger = getLogger()
 
     def _compute_item_score(self, user_id_array, items_to_compute=None):
 
@@ -80,7 +78,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
         torch.cuda.empty_cache()
 
         # set random state of dataloader
-        # self.train_data.pretrain_setup() # Rimuovo perchè penso che sballi tutti gli score
+        self.train_data.pretrain_setup()
 
         self._model = BM3(self.config,
                           self.train_data,
@@ -142,7 +140,7 @@ class BM3_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stoppin
             print("Adam Optimizer")
         else:
             self.logger.warning(
-                'Received unrecognized optimizer, set default Adam optimizer')
+                'Received unrecognized optimizer')
 
         # Scheduler
         # fac = lambda epoch: 0.96 ** (epoch / 50)

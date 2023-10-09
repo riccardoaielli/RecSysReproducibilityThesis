@@ -31,8 +31,7 @@ from WWW2023.BM3_our_interface.BM3_RecommenderWrapper import BM3_RecommenderWrap
 
 def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                          train_data,
-                                         test_data,
-                                         valid_data,
+                                         train_last_test,
                                          config,
                                          recommender_class,
                                          hyperparameters_dictionary,
@@ -64,7 +63,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, config, train_data, test_data, valid_data],
+            experiment_configuration.URM_train, config, train_data],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -77,6 +76,9 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     # Unione di train e validation
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
+
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        2] = train_last_test
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -108,7 +110,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, config, train_data, test_data, valid_data],
+            experiment_configuration.URM_train, config, train_data],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -116,6 +118,9 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args_last_test = recommender_input_args.copy()
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
+
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        2] = train_last_test
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -143,7 +148,7 @@ def run_this_algorithm_experiment(dataset_name,
     baseline_folder_path = result_folder_path + "baselines/"
     this_model_folder_path = result_folder_path + "this_model/"
 
-    use_gpu = False
+    use_gpu = True
 
     if use_gpu:
         if torch.cuda.is_available():
@@ -168,8 +173,7 @@ def run_this_algorithm_experiment(dataset_name,
     URM_validation = dataset.URM_DICT["URM_validation"].copy()
     URM_test = dataset.URM_DICT["URM_test"].copy()
     train_data = dataset.train_data
-    test_data = dataset.test_data
-    valid_data = dataset.valid_data
+    train_last_test = dataset.train_last_test
     config = dataset.config
 
     config['device'] = device
@@ -243,16 +247,37 @@ def run_this_algorithm_experiment(dataset_name,
     ######
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
+    if dataset_name == 'baby':
+        config['dropout'] = 0.5
+        config['reg_weight'] = 0.1
+        config['n_layers'] = 1
+        dataset_hyperparameters = {
+            'dropout': 0.5,
+            'reg': 0.1,
+            'n_layers': 1,
+        }
 
-    # Potrei non usarla come struttura in quanto non dobbiamo fare tuning degli iperparametri
-    all_hyperparameters = {
-        'lr': config['learning_rate'],
-        'dropout': config['dropout'][0],
-        'epochs': config['epochs'],
-        'embedding_size': config['embedding_size'],  # hidden size
-        'reg': config['reg_weight'][0],  # lambda
+    elif dataset_name == 'sports':
+        config['dropout'] = 0.5
+        config['reg_weight'] = 0.01
+        config['n_layers'] = 1
+        dataset_hyperparameters = {
+            'dropout': 0.5,
+            'reg': 0.01,
+            'n_layers': 1,
+        }
 
+    common_hyperparameters = {
+        'lr': 0.001,
+        'epochs': 1000,
+        'embedding_size': 64,  # hidden size
     }
+
+    assert len(dataset_hyperparameters.keys() &
+               common_hyperparameters.keys()) == 0
+
+    all_hyperparameters = common_hyperparameters.copy()
+    all_hyperparameters.update(dataset_hyperparameters.copy())
 
     # Max uguale a quanto detto nel paper e min a zero epochs
     max_epochs_for_earlystopping = config['epochs']
@@ -265,8 +290,7 @@ def run_this_algorithm_experiment(dataset_name,
             # Funzione che esegue il modello con gli iperparametri settati
             _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                                  train_data,
-                                                 test_data,
-                                                 valid_data,
+                                                 train_last_test,
                                                  config,
                                                  BM3_RecommenderWrapper,  # Classe del metodo che deve eseguire
                                                  all_hyperparameters,

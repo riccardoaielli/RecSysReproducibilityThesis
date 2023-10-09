@@ -82,18 +82,21 @@ class BM3DataReader(object):
         # print dataset statistics
         logger.info(str(dataset))
 
-        train_dataset, valid_dataset, test_dataset = dataset.split()
+        train_dataset, valid_dataset, test_dataset, train_last_test_dataset = dataset.split()
         logger.info('\n====Training====\n' + str(train_dataset))
         logger.info('\n====Validation====\n' + str(valid_dataset))
         logger.info('\n====Testing====\n' + str(test_dataset))
 
         # wrap into dataloader
         self.train_data = TrainDataLoader(
-            self.config, train_dataset, batch_size=self.config['train_batch_size'], shuffle=True)  # TODO originariamente shuffle=True
+            self.config, train_dataset, batch_size=self.config['train_batch_size'], shuffle=True)
         self.valid_data = EvalDataLoader(
             self.config, valid_dataset, additional_dataset=train_dataset, batch_size=self.config['eval_batch_size'])
         self.test_data = EvalDataLoader(
             self.config, test_dataset, additional_dataset=train_dataset, batch_size=self.config['eval_batch_size'])
+
+        self.train_last_test = TrainDataLoader(
+            self.config, train_last_test_dataset, batch_size=self.config['train_batch_size'], shuffle=True)
 
         URM_train = self.train_data.inter_matrix(form='csr')
         URM_test = self.valid_data.inter_matrix(form='csr')

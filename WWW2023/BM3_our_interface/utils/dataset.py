@@ -68,6 +68,9 @@ class RecDataset(object):
                 dropped_inter ^= dfs[i][self.uid_field].isin(train_u)
                 dfs[i].drop(dfs[i].index[dropped_inter], inplace=True)
 
+        temp_df_last_test = pd.concat([dfs[0], dfs[1]])
+        dfs.append(temp_df_last_test)
+
         # wrap as RecDataset
         full_ds = [self.copy(_) for _ in dfs]
         return full_ds
