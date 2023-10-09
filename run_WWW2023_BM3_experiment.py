@@ -254,7 +254,6 @@ def run_this_algorithm_experiment(dataset_name,
         dataset_hyperparameters = {
             'dropout': 0.5,
             'reg': 0.1,
-            'n_layers': 1,
         }
 
     elif dataset_name == 'sports':
@@ -264,7 +263,6 @@ def run_this_algorithm_experiment(dataset_name,
         dataset_hyperparameters = {
             'dropout': 0.5,
             'reg': 0.01,
-            'n_layers': 1,
         }
 
     common_hyperparameters = {
