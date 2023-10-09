@@ -32,8 +32,7 @@ from WWW2023.AutoCF_our_interface.AutoCFDataReader import AutoCFDataReader
 
 def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                          trnMat,
-                                         tstMat,
-                                         valMat,
+                                         trnMat_last_test,
                                          recommender_class,
                                          hyperparameters_dictionary,
                                          max_epochs_for_earlystopping,
@@ -69,7 +68,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, trnMat, tstMat, valMat, parameters['batch'], parameters['tstBat']],
+            experiment_configuration.URM_train, trnMat, parameters['batch'], parameters['tstBat']],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -82,6 +81,9 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     # Unione di train e validation
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
+    # Unione di train e validation
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        1] = trnMat_last_test
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -113,14 +115,17 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, trnMat, tstMat, valMat, parameters['batch'], parameters['tstBat']],
+            experiment_configuration.URM_train, trnMat, parameters['batch'], parameters['tstBat']],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
-
+    # Unione di train e validation
     recommender_input_args_last_test = recommender_input_args.copy()
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
+    # Unione di train e validation
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        1] = trnMat_last_test
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -157,10 +162,11 @@ def run_this_algorithm_experiment(dataset_name,
     URM_validation = dataset.URM_DICT["URM_validation"].copy()
     URM_test = dataset.URM_DICT["URM_test"].copy()
     trnMat = dataset.trnMat
-    tstMat = dataset.tstMat
     valMat = dataset.valMat
 
     URM_train_last_test = URM_train + URM_validation
+
+    trnMat_last_test = URM_train_last_test.tocoo()
 
     # Ensure IMPLICIT data and disjoint test-train split
     # Verifica che i dati siano impliciti
@@ -259,8 +265,7 @@ def run_this_algorithm_experiment(dataset_name,
             # Funzione che esegue il modello con gli iperparametri settati
             _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                                  trnMat,
-                                                 tstMat,
-                                                 valMat,
+                                                 trnMat_last_test,
                                                  AutoCF_RecommenderWrapper,  # Classe del metodo che deve eseguire
                                                  all_hyperparameters,
                                                  max_epochs_for_earlystopping,
@@ -392,7 +397,7 @@ def run_this_algorithm_experiment(dataset_name,
             result_folder_path + "{}_{}_{}_latex_results.txt".format(
                 ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
             metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
-                          "DIVERSITY_GINI", "SHANNON_ENTROPY"],  # TODO sistema beyond_accuracy_metrics
+                          "DIVERSITY_GINI", "SHANNON_ENTROPY"],
             cutoffs_list=[10, 20],
             table_title=None,
             highlight_best=True)
@@ -425,8 +430,8 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    dataset_list = ["sparse_amazon", "sparse_gowalla",
-                    "sparse_yelp"]  # Dataset list
+    # , "sparse_amazon"] # TODO Dataset list
+    dataset_list = ["sparse_gowalla", "sparse_yelp"]
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))

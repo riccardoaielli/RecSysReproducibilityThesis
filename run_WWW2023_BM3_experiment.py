@@ -401,7 +401,7 @@ def run_this_algorithm_experiment(dataset_name,
             result_folder_path + "{}_{}_{}_latex_results.txt".format(
                 ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
             metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
-                          "DIVERSITY_GINI", "SHANNON_ENTROPY"],  # TODO sistema beyond_accuracy_metrics
+                          "DIVERSITY_GINI", "SHANNON_ENTROPY"],
             cutoffs_list=[10, 20],
             table_title=None,
             highlight_best=True)
@@ -434,7 +434,7 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    # , 'elec', 'sports'] # TODO includi tutti i dataset, elec è un dataset troppo grande e con le risorse computazionali a disposizione non rieco a fare il training quindi lo escludo
+    # , 'elec', 'sports'] # TODO elec è un dataset troppo grande e con le risorse computazionali a disposizione non rieco a fare il training quindi lo escludo
     dataset_list = ['baby', 'sports']
 
     for dataset_name in dataset_list:

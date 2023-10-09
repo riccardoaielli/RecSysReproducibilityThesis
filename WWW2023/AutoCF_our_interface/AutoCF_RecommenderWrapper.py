@@ -30,7 +30,7 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
 
     RECOMMENDER_NAME = "AutoCF_RecommenderWrapper"
 
-    def __init__(self, URM_train, trnMat, tstMat, valMat, batch, tstBat, verbose=True, use_gpu=True):
+    def __init__(self, URM_train, trnMat, batch, tstBat, verbose=True, use_gpu=True):
         super(AutoCF_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
 
@@ -50,8 +50,6 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         print('device: ', self.device)
 
         self.trnMat = trnMat
-        self.tstMat = tstMat
-        self.valMat = valMat
         self.batch = batch
         self.tstBat = tstBat
 
@@ -62,9 +60,9 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
         trnData = TrnData(trnMat)
         self.trnLoader = dataloader.DataLoader(
             trnData, batch_size=batch, shuffle=True, num_workers=0)
-        tstData = TstData(tstMat, trnMat)
-        self.tstLoader = dataloader.DataLoader(
-            tstData, batch_size=tstBat, shuffle=False, num_workers=0)
+        # tstData = TstData(tstMat, trnMat)
+        # self.tstLoader = dataloader.DataLoader(
+        #     tstData, batch_size=tstBat, shuffle=False, num_workers=0)
 
         # This is used in _compute_item_score
         self._item_indices = np.arange(0, self.n_items, dtype=np.int)
@@ -73,40 +71,15 @@ class AutoCF_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stop
 
         item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
 
-        print(user_id_array)
-
         allPred = t.mm(self.usrEmbeds[user_id_array], t.transpose(
             self.itmEmbeds, 1, 0)).detach().cpu().numpy()  # * (1 - trnMask) - trnMask * 1e8
 
+        # Implementazione da correggere
         if items_to_compute is not None:
             item_scores[user_id_array,
                         items_to_compute] = allPred[user_id_array, items_to_compute]
         else:
             item_scores = allPred  # item_scores[user_id_array, :] = allPred
-
-        if True:
-            print(np.shape(item_scores))
-
-        """ item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
-
-        for user_index in range(len(user_id_array)):
-
-            user_id = user_id_array[user_index]
-
-            item_score_user = t.mm(self.usrEmbeds[user_id], t.transpose(
-                self.itmEmbeds, 1, 0))  # * (1 - trnMask) - trnMask * 1e8
-
-            # Do not modify this
-            # Put the predictions in the correct items
-            if items_to_compute is not None:
-                item_scores[user_index,
-                            items_to_compute] = item_score_user[items_to_compute].detach().cpu().numpy()
-            else:
-                item_scores[user_index,
-                            :] = item_score_user.detach().cpu().numpy()
-
-            if True:
-                print(np.shape(item_scores)) """
 
         return item_scores
 
