@@ -46,6 +46,8 @@ from scipy import *
 import scipy.linalg as la
 from scipy.sparse import *
 
+from Utils.assertions_on_data_for_experiments import assert_implicit_data, assert_disjoint_matrices
+
 
 class BM3DataReader(object):
 
@@ -99,8 +101,10 @@ class BM3DataReader(object):
             self.config, train_last_test_dataset, batch_size=self.config['train_batch_size'], shuffle=True)
 
         URM_train = self.train_data.inter_matrix(form='csr')
-        URM_test = self.valid_data.inter_matrix(form='csr')
-        URM_validation = self.test_data.inter_matrix(form='csr')
+        URM_validation = self.valid_data.inter_matrix(form='csr')
+        URM_test = self.test_data.inter_matrix(form='csr')
+
+        # train_last_test = self.train_last_test.inter_matrix(form='csr')
 
         self.URM_DICT = {
             "URM_train": URM_train,
@@ -108,12 +112,21 @@ class BM3DataReader(object):
             "URM_validation": URM_validation,
         }
 
+        # assert_disjoint_matrices(
+        #     [URM_train, URM_validation, URM_test])
+
+        # assert_disjoint_matrices(
+        #     [train_last_test, URM_test])
+
         # print(URM_train.shape)
         # print(URM_train)
         # print(URM_test.shape)
         # print(URM_test)
         # print(URM_validation.shape)
         # print(URM_validation)
+
+        # print(train_last_test.shape)
+        # print(train_last_test)
 
         self.ICM_DICT = {}
 
