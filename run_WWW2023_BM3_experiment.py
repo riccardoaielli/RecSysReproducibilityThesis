@@ -402,7 +402,7 @@ def run_this_algorithm_experiment(dataset_name,
                 ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
             metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
                           "DIVERSITY_GINI", "SHANNON_ENTROPY"],
-            cutoffs_list=[10, 20],
+            cutoffs_list=[20],
             table_title=None,
             highlight_best=True)
 

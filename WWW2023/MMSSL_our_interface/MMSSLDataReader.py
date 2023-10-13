@@ -91,6 +91,7 @@ class MMSSLDataReader(object):
             self.text_feats = np.load(dataset_dir + '/text_feat.npy')
             self.image_feat_dim = self.image_feats.shape[-1]
             self.text_feat_dim = self.text_feats.shape[-1]
+            # Dovrebbe eseere una matrice sparsa csr corrispondente a train.json, posso sfruttare questa cosa per fare unione di train e val for final test
             self.ui_graph = self.ui_graph_raw = pickle.load(
                 open(dataset_dir + '/train_mat', 'rb'))
 
@@ -149,10 +150,10 @@ class MMSSLDataReader(object):
             self.val = sp.dok_matrix(
                 (self.n_users, self.n_items), dtype=np.float32)
 
-            self.R_Item_Interacts = sp.dok_matrix(
-                (self.n_items, self.n_items), dtype=np.float32)
+            # self.R_Item_Interacts = sp.dok_matrix(
+            #     (self.n_items, self.n_items), dtype=np.float32)
 
-            self.train_items, self.test_set, self.val_set = {}, {}, {}
+            self.train_set, self.test_set, self.val_set = {}, {}, {}
             for uid, train_items in train.items():
                 if len(train_items) == 0:
                     continue
@@ -160,7 +161,7 @@ class MMSSLDataReader(object):
                 for idx, i in enumerate(train_items):
                     self.train[uid, i] = 1.
 
-                self.train_items[uid] = train_items
+                self.train_set[uid] = train_items
 
             for uid, test_items in test.items():
                 if len(test_items) == 0:
@@ -179,6 +180,15 @@ class MMSSLDataReader(object):
                     self.val[uid, i] = 1.
 
                 self.val_set[uid] = val_items
+
+            self.train_set_last_test = {}
+            for uid, values in train.items():
+
+                self.train_set_last_test[uid] = values
+
+            for uid, values in val.items():
+
+                self.train_set_last_test[uid] = self.train_set_last_test[uid] + values
 
             # data_generator = Data(path=dataset_dir, batch_size=batch_size)
             # print(self.train.shape)
@@ -210,10 +220,10 @@ class MMSSLDataReader(object):
                 "n_items": self.n_items,
                 "n_users": self.n_users,
                 "n_train": self.n_train,
-                "test_set": self.test_set,
-                "val_set": self.val_set,
+                "n_val": self.n_val,
                 "exist_users": self.exist_users,
-                "train_items": self.train_items,
+                "train_set": self.train_set,
+                "train_set_last_test": self.train_set_last_test,
             }
 
             print('saving data in splitted_data.zip')

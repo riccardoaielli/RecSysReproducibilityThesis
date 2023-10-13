@@ -35,7 +35,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
     RECOMMENDER_NAME = "MMSSL_RecommenderWrapper"
 
-    def __init__(self, URM_train, image_feats, text_feats, image_feat_dim, text_feat_dim, ui_graph, test_set, val_set, exist_users, train_items, config, verbose=True, use_gpu=True):  # TODO
+    def __init__(self, URM_train, image_feats, text_feats, image_feat_dim, text_feat_dim, ui_graph, exist_users, train_items, config, n_train, verbose=True, use_gpu=True):
         super(MMSSL_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
 
@@ -58,21 +58,20 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
         self.config['device'] = self.device
         self.n_users = self.config['n_users']
         self.n_items = self.config['n_items']
+        config['n_train'] = n_train
         self.n_train = self.config['n_train']
 
         self.image_feats = image_feats
         self.text_feats = text_feats
-        self.image_feat_dim = image_feat_dim  # TODO forse posso mettere in config
-        self.text_feat_dim = text_feat_dim  # TODO forse posso mettere in config
+        self.image_feat_dim = image_feat_dim
+        self.text_feat_dim = text_feat_dim
         self.ui_graph = self.ui_graph_raw = ui_graph
-        self.test_set = test_set
-        self.val_set = val_set
         self.exist_users = exist_users
         self.train_items = train_items
         # self.regs = eval(self.config['regs'])
         self.decay = self.config['regs'][0]
 
-    def _compute_item_score(self, user_id_array, items_to_compute=None):  # TODO
+    def _compute_item_score(self, user_id_array, items_to_compute=None):
 
         item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
 
@@ -119,10 +118,10 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
                             self.config['weight_size'],
                             self.image_feats,
                             self.text_feats,
-                            self.config,  # TODO# TODO
+                            self.config,
                             ).to(self.config['device'])
 
-    def fit(self,  # TODO
+    def fit(self,
             epochs=None,
             temp_file_folder=None,
             # These are standard
@@ -183,7 +182,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
     def _update_best_model(self):
         self.save_model(self.temp_file_folder, file_name="_best_model")
 
-    def _run_epoch(self, currentEpoch):  # TODO
+    def _run_epoch(self, currentEpoch):
 
         training_time_list = []
         loss_loger, pre_loger, rec_loger, ndcg_loger, hit_loger = [], [], [], [], []
@@ -327,7 +326,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
         return
 
-    def save_model(self, folder_path, file_name=None):  # TODO
+    def save_model(self, folder_path, file_name=None):
 
         if file_name is None:
             file_name = self.RECOMMENDER_NAME
@@ -343,7 +342,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
         self._print("Saving complete")
 
-    def load_model(self, folder_path, file_name=None):  # TODO
+    def load_model(self, folder_path, file_name=None):
 
         if file_name is None:
             file_name = self.RECOMMENDER_NAME
@@ -427,7 +426,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
         u_sim_list = []
 
         for i_b in range(num_batches):
-            index = indices[i_b * self.config['batch_size']                            :(i_b + 1) * self.config['batch_size']]
+            index = indices[i_b * self.config['batch_size']:(i_b + 1) * self.config['batch_size']]
             sim = torch.mm(topk_u, item_final[index].T)
             sim_gt = torch.multiply(sim, (1-u_ui[:, index]))
             u_sim_list.append(sim_gt)

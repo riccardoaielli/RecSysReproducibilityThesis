@@ -35,11 +35,13 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                          image_feat_dim,
                                          text_feat_dim,
                                          ui_graph,
-                                         test_set,
-                                         val_set,
                                          exist_users,
-                                         train_items,
+                                         train_set,
                                          config,
+                                         n_train,
+                                         ui_graph_last_test,
+                                         n_train_last_test,
+                                         train_set_last_test,
                                          recommender_class,
                                          hyperparameters_dictionary,
                                          max_epochs_for_earlystopping,
@@ -70,7 +72,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, image_feats, text_feats, image_feat_dim, text_feat_dim, ui_graph, test_set, val_set, exist_users, train_items, config],
+            experiment_configuration.URM_train, image_feats, text_feats, image_feat_dim, text_feat_dim, ui_graph, exist_users, train_set, config, n_train],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -83,6 +85,15 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     # Unione di train e validation
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
+
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        5] = ui_graph_last_test
+
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        7] = train_set_last_test
+
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        9] = n_train_last_test
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -114,7 +125,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train, image_feats,
-                                     text_feats, image_feat_dim, text_feat_dim, ui_graph, test_set, val_set, exist_users, train_items, config],
+                                     text_feats, image_feat_dim, text_feat_dim, ui_graph, exist_users, train_set, config, n_train],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -122,6 +133,15 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args_last_test = recommender_input_args.copy()
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
+
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        5] = ui_graph_last_test
+
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        7] = train_set_last_test
+
+    recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
+        9] = n_train_last_test
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -164,12 +184,16 @@ def run_this_algorithm_experiment(dataset_name,
     n_users = dataset.n_users
     n_items = dataset.n_items
     n_train = dataset.n_train
-    test_set = dataset.test_set
-    val_set = dataset.val_set
+    n_val = dataset.n_val
     exist_users = dataset.exist_users
-    train_items = dataset.train_items
+    train_set = dataset.train_set
+    train_set_last_test = dataset.train_set_last_test
 
     URM_train_last_test = URM_train + URM_validation
+
+    ui_graph_last_test = URM_train_last_test
+
+    n_train_last_test = n_train + n_val
 
     # Verifica che i dati siano impliciti
     assert_implicit_data([URM_train, URM_validation, URM_test])
@@ -179,6 +203,10 @@ def run_this_algorithm_experiment(dataset_name,
     # If directory does not exist, create
     if not os.path.exists(result_folder_path):
         os.makedirs(result_folder_path)
+
+    # If directory does not exist, create
+    if not os.path.exists(data_folder_path):
+        os.makedirs(data_folder_path)
 
     save_data_statistics(URM_train + URM_validation + URM_test,  # Consentono di capire le distribuzioni degli item
                          dataset_name,
@@ -192,8 +220,8 @@ def run_this_algorithm_experiment(dataset_name,
                                ["Training data", "Test data"],
                                data_folder_path + "popularity_statistics")
 
-    # TODO Solitamente si cambia solo metric_to_optimize e cutoff_to_optimize
-    metric_to_optimize = 'NDCG'  # Dato originale dell'articolo
+    # Non specificato metto NDCG@20
+    metric_to_optimize = 'NDCG'
     # Dato originale dell'articolo, non è specificato che cutoff to optimize hanno usato, metto 20
     cutoff_to_optimize = 20
     cutoff_list = [1, 5, 10, 20, 30, 40, 50, 100]
@@ -237,18 +265,18 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    use_gpu = False  # TODO gpu da mettere a True
+    use_gpu = True  # TODO gpu da mettere a True
 
     config = dict()
     config['n_users'] = n_users
     config['n_items'] = n_items
-    config['n_train'] = n_train
 
     # useless
     config['verbose'] = True
     config['lambda_coeff'] = 0.9
     config['early_stopping_patience'] = 7
-    config['layers'] = 1
+    # default 1, best 2 o 3, dalle analisi 2 sembra migliore
+    config['layers'] = 2
     config['mess_dropout'] = [0.1, 0.1]
     config['sparse'] = 1
     config['test_flag'] = 'part'
@@ -283,7 +311,7 @@ def run_this_algorithm_experiment(dataset_name,
 
     # train
     config['seed'] = 2022
-    config['epoch'] = 1  # TODO metti epochs a 1000
+    config['epoch'] = 1000  # TODO metti epochs a 1000
     config['embed_size'] = 64
     config['batch_size'] = 1024
     config['D_lr'] = 3e-4
@@ -318,20 +346,18 @@ def run_this_algorithm_experiment(dataset_name,
 
     # cl
     config['T'] = 1
-    config['tau'] = 0.5
+    config['tau'] = 0.085  # default 0.5, best secondo il paper 0.085
     config['geneGraph_rate'] = 0.1
     config['geneGraph_rate_pos'] = 2
     config['geneGraph_rate_neg'] = -1
     config['m_topk_rate'] = 0.0001
     config['log_log_scale'] = 0.00001
 
-    # TODO sistema lista all_hyperparameters
     all_hyperparameters = {
         'epochs': config['epoch'],
-
     }
 
-    max_epochs_for_earlystopping = 500
+    max_epochs_for_earlystopping = config['epoch']
     min_epochs_for_earlystopping = 0
 
     if flag_article_default:
@@ -345,11 +371,13 @@ def run_this_algorithm_experiment(dataset_name,
                                                  image_feat_dim,
                                                  text_feat_dim,
                                                  ui_graph,
-                                                 test_set,
-                                                 val_set,
                                                  exist_users,
-                                                 train_items,
+                                                 train_set,
                                                  config,
+                                                 n_train,
+                                                 ui_graph_last_test,
+                                                 n_train_last_test,
+                                                 train_set_last_test,
                                                  MMSSL_RecommenderWrapper,  # Classe del metodo che deve eseguire
                                                  all_hyperparameters,
                                                  max_epochs_for_earlystopping,
@@ -472,8 +500,8 @@ def run_this_algorithm_experiment(dataset_name,
             result_folder_path + "{}_{}_{}_latex_results.txt".format(
                 ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
             metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
-                          "DIVERSITY_GINI", "SHANNON_ENTROPY"],  # TODO sistema beyond_accuracy_metrics
-            cutoffs_list=[10, 20],
+                          "DIVERSITY_GINI", "SHANNON_ENTROPY"],
+            cutoffs_list=[20],
             table_title=None,
             highlight_best=True)
 
@@ -505,8 +533,10 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    # TODO forse tiktok ha biosgno di caricare anche audio_feat
-    dataset_list = ["baby"]  # , "sports", "tiktok", "allrecipes"]  # TODO
+    # Forse tiktok ha biosgno di caricare anche audio_feat, non è impementato nel modello originale
+    # quindi ignorerei le audio feautures
+    # , "sports", "baby", "allrecipes"]  # TODO lista datasets
+    dataset_list = ["baby", "tiktok", "sports", "allrecipes"]
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))
