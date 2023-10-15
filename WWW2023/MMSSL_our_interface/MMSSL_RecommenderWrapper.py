@@ -184,12 +184,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
 
     def _run_epoch(self, currentEpoch):
 
-        training_time_list = []
-        loss_loger, pre_loger, rec_loger, ndcg_loger, hit_loger = [], [], [], [], []
-        line_var_loss, line_g_loss, line_d_loss, line_cl_loss, line_var_recall, line_var_precision, line_var_ndcg = [], [], [], [], [], [], []
-        stopping_step = 0
-        should_stop = False
-        cur_best_pre_0 = 0.
+        line_var_loss, line_g_loss, line_d_loss, line_cl_loss = [], [], [], []
 
         loss, mf_loss, emb_loss, reg_loss = 0., 0., 0., 0.
         contrastive_loss = 0.
@@ -197,7 +192,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
         self.gene_u, self.gene_real, self.gene_fake = None, None, {}
         self.topk_p_dict, self.topk_id_dict = {}, {}
 
-        for idx in tqdm(range(n_batch)):
+        for idx in range(n_batch):
             self._model.train()
             users, pos_items, neg_items = self.sample()
 

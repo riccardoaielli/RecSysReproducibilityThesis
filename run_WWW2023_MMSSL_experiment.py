@@ -311,7 +311,7 @@ def run_this_algorithm_experiment(dataset_name,
 
     # train
     config['seed'] = 2022
-    config['epoch'] = 1000  # TODO metti epochs a 1000
+    config['epoch'] = 400  # TODO default epochs 1000
     config['embed_size'] = 64
     config['batch_size'] = 1024
     config['D_lr'] = 3e-4
@@ -536,7 +536,7 @@ if __name__ == '__main__':
     # Forse tiktok ha biosgno di caricare anche audio_feat, non è impementato nel modello originale
     # quindi ignorerei le audio feautures
     # , "sports", "baby", "allrecipes"]  # TODO lista datasets
-    dataset_list = ["baby", "tiktok", "sports", "allrecipes"]
+    dataset_list = ["tiktok"]  # , "baby", "sports", "allrecipes"]
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))
