@@ -497,7 +497,7 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
         # users = self.exist_users[:]
 
         def sample_pos_items_for_u(u, num):
-            pos_items = self.train_items[str(u)]
+            pos_items = self.train_items[u]
             n_pos_items = len(pos_items)
             pos_batch = []
             while True:
@@ -516,19 +516,19 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
                 if len(neg_items) == num:
                     break
                 neg_id = np.random.randint(low=0, high=self.n_items, size=1)[0]
-                if neg_id not in self.train_items[str(u)] and neg_id not in neg_items:
+                if neg_id not in self.train_items[u] and neg_id not in neg_items:
                     neg_items.append(neg_id)
             return neg_items
 
         def sample_neg_items_for_u_from_pools(u, num):
             neg_items = list(
-                set(self.neg_pools[u]) - set(self.train_items[str(u)]))
+                set(self.neg_pools[u]) - set(self.train_items[u]))
             return rd.sample(neg_items, num)
 
         pos_items, neg_items = [], []
         for u in users:
-            pos_items += sample_pos_items_for_u(u, 1)
-            neg_items += sample_neg_items_for_u(u, 1)
+            pos_items += sample_pos_items_for_u(str(u), 1)
+            neg_items += sample_neg_items_for_u(str(u), 1)
             # neg_items += sample_neg_items_for_u(u, 3)
         return users, pos_items, neg_items
 

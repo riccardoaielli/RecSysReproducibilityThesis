@@ -6,26 +6,41 @@ Created on 04/06/2019
 @author: Anonymized for blind review
 """
 
+import pandas as pd
+import numpy as np
+import os
 from Recommenders.DataIO import DataIO
 from Utils.seconds_to_biggest_unit import seconds_to_biggest_unit
 from Recommenders.Recommender_import_list import *
-import re, numbers
+import re
+import numbers
 from functools import partial
+
 
 def _get_printable_recommender_name(RECOMMENDER_NAME):
 
     recommender_printable_name = RECOMMENDER_NAME
-    recommender_printable_name = recommender_printable_name.replace("Recommender", "")
+    recommender_printable_name = recommender_printable_name.replace(
+        "Recommender", "")
     recommender_printable_name = recommender_printable_name.replace("_", " ")
-    recommender_printable_name = re.sub("CF$", " CF", recommender_printable_name)
-    recommender_printable_name = re.sub("CBF$", " CBF", recommender_printable_name)
-    recommender_printable_name = re.sub("SLIM", "SLIM ", recommender_printable_name)
-    recommender_printable_name = recommender_printable_name.replace("MatrixFactorization", "MF")
-    recommender_printable_name = recommender_printable_name.replace("SLIM", "SLIM ")
-    recommender_printable_name = recommender_printable_name.replace(" Hybrid", "")
-    recommender_printable_name = recommender_printable_name.replace(" Cython", "")
-    recommender_printable_name = recommender_printable_name.replace(" Wrapper", "")
-    recommender_printable_name = recommender_printable_name.replace(" Matlab", "")
+    recommender_printable_name = re.sub(
+        "CF$", " CF", recommender_printable_name)
+    recommender_printable_name = re.sub(
+        "CBF$", " CBF", recommender_printable_name)
+    recommender_printable_name = re.sub(
+        "SLIM", "SLIM ", recommender_printable_name)
+    recommender_printable_name = recommender_printable_name.replace(
+        "MatrixFactorization", "MF")
+    recommender_printable_name = recommender_printable_name.replace(
+        "SLIM", "SLIM ")
+    recommender_printable_name = recommender_printable_name.replace(
+        " Hybrid", "")
+    recommender_printable_name = recommender_printable_name.replace(
+        " Cython", "")
+    recommender_printable_name = recommender_printable_name.replace(
+        " Wrapper", "")
+    recommender_printable_name = recommender_printable_name.replace(
+        " Matlab", "")
 
     recommender_printable_name = re.sub(" +", " ", recommender_printable_name)
     recommender_printable_name = re.sub(" $", "", recommender_printable_name)
@@ -33,11 +48,9 @@ def _get_printable_recommender_name(RECOMMENDER_NAME):
     return recommender_printable_name
 
 
-
-
 ################################################################################################
 ######
-######      BUILD FILE NAMES LIST
+# BUILD FILE NAMES LIST
 ######
 
 
@@ -50,7 +63,6 @@ def _get_algorithm_similarity_and_feature_combinations(algorithm, algorithm_row_
     if len(feature_matrix_names_to_report_list) == 0:
         feature_matrix_names_to_report_list = [""]
 
-
     for similarity in KNN_similarity_list:
 
         for feature_matrix_name in feature_matrix_names_to_report_list:
@@ -60,31 +72,30 @@ def _get_algorithm_similarity_and_feature_combinations(algorithm, algorithm_row_
                 feature_matrix_row_label = ""
 
             else:
-                feature_matrix_row_label = _get_printable_recommender_name(feature_matrix_name)
+                feature_matrix_row_label = _get_printable_recommender_name(
+                    feature_matrix_name)
                 feature_matrix_row_label += " "
 
             if feature_matrix_name != "":
                 feature_matrix_name = "_" + feature_matrix_name
 
-
             algorithm_data_to_print_list.append({
                 "algorithm": algorithm,
                 "algorithm_row_label": algorithm_row_label + " " + feature_matrix_row_label + similarity,
-                "algorithm_file_name": algorithm_file_name + feature_matrix_name  + "_" + similarity,
+                "algorithm_file_name": algorithm_file_name + feature_matrix_name + "_" + similarity,
             })
 
     return algorithm_data_to_print_list
 
 
 def _get_algorithm_feature_combinations(algorithm, algorithm_row_label, algorithm_file_name,
-                                       feature_matrix_names_to_report_list):
+                                        feature_matrix_names_to_report_list):
 
     algorithm_data_to_print_list = []
 
     # If the list is empty, add empty string
     if len(feature_matrix_names_to_report_list) == 0:
         feature_matrix_names_to_report_list = [""]
-
 
     for feature_matrix_name in feature_matrix_names_to_report_list:
 
@@ -93,12 +104,12 @@ def _get_algorithm_feature_combinations(algorithm, algorithm_row_label, algorith
             feature_matrix_row_label = ""
 
         else:
-            feature_matrix_row_label = _get_printable_recommender_name(feature_matrix_name)
+            feature_matrix_row_label = _get_printable_recommender_name(
+                feature_matrix_name)
             feature_matrix_row_label += " "
 
         if feature_matrix_name != "":
             feature_matrix_name = "_" + feature_matrix_name
-
 
         algorithm_data_to_print_list.append({
             "algorithm": algorithm,
@@ -110,17 +121,15 @@ def _get_algorithm_feature_combinations(algorithm, algorithm_row_label, algorith
 
 
 def _get_algorithm_file_name_list(algorithm_list,
-                                  KNN_similarity_list = None,
-                                  ICM_names_list = None,
-                                  UCM_names_list = None,
+                                  KNN_similarity_list=None,
+                                  ICM_names_list=None,
+                                  UCM_names_list=None,
                                   ):
-
 
     if KNN_similarity_list is None:
         KNN_similarity_list = ["cosine"]
 
     algorithm_data_to_print_list = []
-
 
     for algorithm in algorithm_list:
 
@@ -128,8 +137,8 @@ def _get_algorithm_file_name_list(algorithm_list,
             algorithm_data_to_print_list.append(None)
             continue
 
-
-        algorithm_row_label = _get_printable_recommender_name(algorithm.RECOMMENDER_NAME)
+        algorithm_row_label = _get_printable_recommender_name(
+            algorithm.RECOMMENDER_NAME)
 
         algorithm_file_name = algorithm.RECOMMENDER_NAME
 
@@ -144,14 +153,13 @@ def _get_algorithm_file_name_list(algorithm_list,
 
             algorithm_data_to_print_list.extend(this_algorithm_data_list)
 
-
         # If KNN item content based or hybrid item based, expand similarity type and ICM names
         elif algorithm in [ItemKNNCBFRecommender,
                            ItemKNN_CFCBF_Hybrid_Recommender,
                            # ItemKNNCBF_FW_Recommender
                            ]:
 
-            if ICM_names_list is not None and len(ICM_names_list)>0:
+            if ICM_names_list is not None and len(ICM_names_list) > 0:
                 this_algorithm_data_list = _get_algorithm_similarity_and_feature_combinations(algorithm, algorithm_row_label,
                                                                                               algorithm_file_name,
                                                                                               KNN_similarity_list,
@@ -159,16 +167,14 @@ def _get_algorithm_file_name_list(algorithm_list,
 
                 algorithm_data_to_print_list.extend(this_algorithm_data_list)
 
-
         elif algorithm in [LightFMItemHybridRecommender]:
 
-            if ICM_names_list is not None and len(ICM_names_list)>0:
+            if ICM_names_list is not None and len(ICM_names_list) > 0:
                 this_algorithm_data_list = _get_algorithm_feature_combinations(algorithm, algorithm_row_label,
-                                                                                          algorithm_file_name,
-                                                                                          ICM_names_list)
+                                                                               algorithm_file_name,
+                                                                               ICM_names_list)
 
                 algorithm_data_to_print_list.extend(this_algorithm_data_list)
-
 
         # If KNN user content based or hybrid user based, expand similarity type and UCM names
         elif algorithm in [UserKNNCBFRecommender,
@@ -176,7 +182,7 @@ def _get_algorithm_file_name_list(algorithm_list,
                            # UserKNNCBF_FW_Recommender
                            ]:
 
-            if UCM_names_list is not None and len(UCM_names_list)>0:
+            if UCM_names_list is not None and len(UCM_names_list) > 0:
                 this_algorithm_data_list = _get_algorithm_similarity_and_feature_combinations(algorithm, algorithm_row_label,
                                                                                               algorithm_file_name,
                                                                                               KNN_similarity_list,
@@ -186,13 +192,12 @@ def _get_algorithm_file_name_list(algorithm_list,
 
         elif algorithm in [LightFMUserHybridRecommender]:
 
-            if UCM_names_list is not None and len(UCM_names_list)>0:
+            if UCM_names_list is not None and len(UCM_names_list) > 0:
                 this_algorithm_data_list = _get_algorithm_feature_combinations(algorithm, algorithm_row_label,
-                                                                                          algorithm_file_name,
-                                                                                          UCM_names_list)
+                                                                               algorithm_file_name,
+                                                                               UCM_names_list)
 
                 algorithm_data_to_print_list.extend(this_algorithm_data_list)
-
 
         else:
 
@@ -202,29 +207,25 @@ def _get_algorithm_file_name_list(algorithm_list,
                 "algorithm_file_name": algorithm_file_name,
             })
 
-
     return algorithm_data_to_print_list
-
 
 
 def _get_algorithm_metadata_to_print_list(result_folder_path,
                                           algorithm_list,
-                                          KNN_similarity_list = None,
-                                          ICM_names_list = None,
-                                          UCM_names_list = None,
+                                          KNN_similarity_list=None,
+                                          ICM_names_list=None,
+                                          UCM_names_list=None,
                                           ):
 
-
-    dataIO = DataIO(folder_path = result_folder_path)
+    dataIO = DataIO(folder_path=result_folder_path)
 
     algorithm_file_name_list = _get_algorithm_file_name_list(
-                                    algorithm_list=algorithm_list,
-                                    KNN_similarity_list = KNN_similarity_list,
-                                    ICM_names_list = ICM_names_list,
-                                    UCM_names_list = UCM_names_list)
+        algorithm_list=algorithm_list,
+        KNN_similarity_list=KNN_similarity_list,
+        ICM_names_list=ICM_names_list,
+        UCM_names_list=UCM_names_list)
 
     algorithm_metadata_to_print_list = []
-
 
     for algorithm_file_dict in algorithm_file_name_list:
 
@@ -238,28 +239,25 @@ def _get_algorithm_metadata_to_print_list(result_folder_path,
 
         if algorithm_file_name is not None:
             try:
-                search_metadata = dataIO.load_data(algorithm_file_name + "_metadata")
+                search_metadata = dataIO.load_data(
+                    algorithm_file_name + "_metadata")
             except FileNotFoundError:
                 pass
             except Exception as e:
-                print("Exception: '{}' while reading file: '{}'".format(str(e), algorithm_file_name + "_metadata"))
+                print("Exception: '{}' while reading file: '{}'".format(
+                    str(e), algorithm_file_name + "_metadata"))
                 pass
 
         algorithm_file_dict["search_metadata"] = search_metadata
         algorithm_metadata_to_print_list.append(algorithm_file_dict)
 
-
     return algorithm_metadata_to_print_list
-
-
-
 
 
 ################################################################################################
 ######
-######      TIME STATS
+# TIME STATS
 ######
-
 
 
 def _mean_and_stdd_of_array(data_array):
@@ -294,7 +292,6 @@ def _convert_sec_list_into_biggest_unit(data_list):
     return mean_sec, stddev_sec, new_time_unit, new_time_value, new_time_std
 
 
-
 def _time_string_builder(data_list, n_decimals=4):
     """
     Creates a nice printable string from the list of time lengths
@@ -303,49 +300,48 @@ def _time_string_builder(data_list, n_decimals=4):
     :return:
     """
 
-    data_list = [finite_val for finite_val in data_list if finite_val is not None and np.isfinite(finite_val)]
-
+    data_list = [
+        finite_val for finite_val in data_list if finite_val is not None and np.isfinite(finite_val)]
 
     def _measure_unit_string(mean_sec, stddev, unit, n_decimals=4):
 
-        result_row_string = "{:.{n_decimals}f}".format(mean_sec, n_decimals=n_decimals)
+        result_row_string = "{:.{n_decimals}f}".format(
+            mean_sec, n_decimals=n_decimals)
 
         if len(data_list) > 1:
-            result_row_string += " $\\pm$ {:.{n_decimals}f}".format(stddev, n_decimals=n_decimals)
+            result_row_string += " $\\pm$ {:.{n_decimals}f}".format(
+                stddev, n_decimals=n_decimals)
 
         result_row_string += " [{}] ".format(unit)
 
         return result_row_string
 
-
-
-    if len(data_list)>0:
+    if len(data_list) > 0:
 
         # Step1: choose the appropriate measuring unit
-        mean_sec, stddev_sec, new_time_unit, mean_new_unit, stddev_new_unit = _convert_sec_list_into_biggest_unit(data_list)
+        mean_sec, stddev_sec, new_time_unit, mean_new_unit, stddev_new_unit = _convert_sec_list_into_biggest_unit(
+            data_list)
 
         if new_time_unit != "sec":
-            result_row_string = "{:.{n_decimals}f} [{}]".format(mean_sec, "sec", n_decimals=n_decimals)
-            result_row_string += " / " + _measure_unit_string(mean_new_unit, stddev_new_unit, new_time_unit, n_decimals=n_decimals)
+            result_row_string = "{:.{n_decimals}f} [{}]".format(
+                mean_sec, "sec", n_decimals=n_decimals)
+            result_row_string += " / " + \
+                _measure_unit_string(
+                    mean_new_unit, stddev_new_unit, new_time_unit, n_decimals=n_decimals)
 
         else:
-            result_row_string = _measure_unit_string(mean_sec, stddev_sec, "sec", n_decimals=n_decimals)
+            result_row_string = _measure_unit_string(
+                mean_sec, stddev_sec, "sec", n_decimals=n_decimals)
 
     else:
         result_row_string = "-"
 
-
     return result_row_string
-
-
-
-
-
 
 
 ################################################################################################
 ######
-######      MULTIPLE FOLDER HYPERPARAMETERS
+# MULTIPLE FOLDER HYPERPARAMETERS
 ######
 
 def _format_hyperparameter_row_values(dataframe_row_series):
@@ -367,40 +363,42 @@ def _format_hyperparameter_row_values(dataframe_row_series):
 
         dataframe_row_series[dataset_column] = hyperparameter_value
 
-
     return dataframe_row_series
-
-
 
 
 def _print_latex_hyperparameters_from_dataframe(hyperparameters_dataframe, hyperparameters_file):
 
     hyperparameters_dataframe = hyperparameters_dataframe.copy()
-    hyperparameters_dataframe.rename_axis(["Algorithm", "Hyperparameter"], inplace=True)
+    hyperparameters_dataframe.rename_axis(
+        ["Algorithm", "Hyperparameter"], inplace=True)
 
     # Get the columns before changing the index structure
     n_datasets = len(hyperparameters_dataframe.columns)
 
-    hyperparameters_dataframe = hyperparameters_dataframe[~hyperparameters_dataframe.index.get_level_values("Algorithm").str.contains("algorithm_group")]
+    hyperparameters_dataframe = hyperparameters_dataframe[~hyperparameters_dataframe.index.get_level_values(
+        "Algorithm").str.contains("algorithm_group")]
 
     # Set index as the combination of algorithm label and hyperparam name, this will create a multiindex dataframe
     # and enable the automatic multirow latex code
     # hyperparameters_dataframe.set_index(["Algorithm", "Hyperparameter"], inplace=True)
-    latex_code = hyperparameters_dataframe.to_latex(index = True,
-                                                    multirow = True,
-                                                    escape = False,
+    latex_code = hyperparameters_dataframe.to_latex(index=True,
+                                                    multirow=True,
+                                                    escape=False,
                                                     column_format="ll|" + "c"*n_datasets)
 
     # Replace cline with midrule
-    latex_code = latex_code.replace("\\cline{{1-{}}}".format(n_datasets+2), "\\midrule")
+    latex_code = latex_code.replace(
+        "\\cline{{1-{}}}".format(n_datasets+2), "\\midrule")
 
     # Also to_latex adds extra empty header row when index has a name, known BUG
     # https://github.com/pandas-dev/pandas/issues/26111
 
     header_wrong_code = " +& +" + "".join(["& +{} ".format(dataset) for dataset in hyperparameters_dataframe.columns]) + "\\\\\\\\\n" + \
-                        "Algorithm & Hyperparameter "+ "& +" * n_datasets + "\\\\\\\\\n"
+                        "Algorithm & Hyperparameter " + "& +" * n_datasets + "\\\\\\\\\n"
 
-    header_correct_code = "Algorithm & Hyperparameter " + "".join(["&\t {} ".format(dataset) for dataset in hyperparameters_dataframe.columns]) + "\\\\\\\\\n"
+    header_correct_code = "Algorithm & Hyperparameter " + \
+        "".join(["&\t {} ".format(dataset)
+                for dataset in hyperparameters_dataframe.columns]) + "\\\\\\\\\n"
 
     latex_code = re.sub(header_wrong_code, header_correct_code, latex_code)
 
@@ -413,13 +411,12 @@ def _print_latex_hyperparameters_from_dataframe(hyperparameters_dataframe, hyper
     separator_wrong_code = "(\\\\\\\\\n)([^ \n]+[^&\n]+&)"
     separator_correct_code = r"\1\\midrule\n\2"
 
-    latex_code = re.sub(separator_wrong_code, separator_correct_code, latex_code)
+    latex_code = re.sub(separator_wrong_code,
+                        separator_correct_code, latex_code)
     latex_code = re.sub("_", " ", latex_code)
 
     hyperparameters_file.write(latex_code)
     hyperparameters_file.close()
-
-
 
 
 def _remove_missing_runs_for_algorithm(hyperparameters_dataframe):
@@ -431,35 +428,33 @@ def _remove_missing_runs_for_algorithm(hyperparameters_dataframe):
     """
 
     # Search all algorithms having a hyperparameter whose name is "nan"
-    none_hyperpar = hyperparameters_dataframe[hyperparameters_dataframe.index.get_level_values("hyperparameter_name").isnull()]
+    none_hyperpar = hyperparameters_dataframe[hyperparameters_dataframe.index.get_level_values(
+        "hyperparameter_name").isnull()]
 
     # Check if they have more hyperparameters
-    alg_number_hyperparam = hyperparameters_dataframe.groupby('algorithm_row_label').size() > 1
+    alg_number_hyperparam = hyperparameters_dataframe.groupby(
+        'algorithm_row_label').size() > 1
 
     # If so, remove the single "nan" hyperparameter
-    single_nan_to_remove_flag = alg_number_hyperparam[none_hyperpar.index.get_level_values("algorithm_row_label")]
+    single_nan_to_remove_flag = alg_number_hyperparam[none_hyperpar.index.get_level_values(
+        "algorithm_row_label")]
     single_nan_to_remove_flag = single_nan_to_remove_flag[single_nan_to_remove_flag]
 
-    rows_to_drop = hyperparameters_dataframe.index.get_level_values("algorithm_row_label").isin(single_nan_to_remove_flag.index) & hyperparameters_dataframe.index.get_level_values("hyperparameter_name").isnull()
+    rows_to_drop = hyperparameters_dataframe.index.get_level_values("algorithm_row_label").isin(
+        single_nan_to_remove_flag.index) & hyperparameters_dataframe.index.get_level_values("hyperparameter_name").isnull()
     hyperparameters_dataframe = hyperparameters_dataframe[~rows_to_drop]
 
     return hyperparameters_dataframe
 
 
-
-
-
-
-
-
 def generate_latex_hyperparameters(result_folder_path,
                                    experiment_subfolder_list,
                                    other_algorithm_list,
-                                   file_name_suffix = "",
-                                   KNN_similarity_to_report_list = None,
-                                   ICM_names_to_report_list = None,
-                                   UCM_names_to_report_list = None,
-                                   split_per_algorithm_type = False,
+                                   file_name_suffix="",
+                                   KNN_similarity_to_report_list=None,
+                                   ICM_names_to_report_list=None,
+                                   UCM_names_to_report_list=None,
+                                   split_per_algorithm_type=False,
                                    ):
 
     hyperparameters_dataframe = None
@@ -467,14 +462,15 @@ def generate_latex_hyperparameters(result_folder_path,
     for experiment_subfolder in experiment_subfolder_list:
 
         result_loader = ResultFolderLoader(result_folder_path + experiment_subfolder,
-                                         base_algorithm_list = None,
-                                         other_algorithm_list = other_algorithm_list,
-                                         KNN_similarity_list = KNN_similarity_to_report_list,
-                                         ICM_names_list = ICM_names_to_report_list,
-                                         UCM_names_list = UCM_names_to_report_list)
+                                           base_algorithm_list=None,
+                                           other_algorithm_list=other_algorithm_list,
+                                           KNN_similarity_list=KNN_similarity_to_report_list,
+                                           ICM_names_list=ICM_names_to_report_list,
+                                           UCM_names_list=UCM_names_to_report_list)
 
         hyperparameters_dataframe_subfolder = result_loader.get_hyperparameters_dataframe()
-        hyperparameters_dataframe_subfolder.rename(columns={"hyperparameter_value": experiment_subfolder}, inplace = True)
+        hyperparameters_dataframe_subfolder.rename(
+            columns={"hyperparameter_value": experiment_subfolder}, inplace=True)
 
         if hyperparameters_dataframe is None:
             hyperparameters_dataframe = hyperparameters_dataframe_subfolder
@@ -486,21 +482,24 @@ def generate_latex_hyperparameters(result_folder_path,
             hyperparameters_dataframe = hyperparameters_dataframe.merge(hyperparameters_dataframe_subfolder,
                                                                         validate="one_to_one",
                                                                         how='outer',
-                                                                        on = ["algorithm_row_label", "hyperparameter_name"])
+                                                                        on=["algorithm_row_label", "hyperparameter_name"])
 
-    hyperparameters_dataframe = _remove_missing_runs_for_algorithm(hyperparameters_dataframe)
+    hyperparameters_dataframe = _remove_missing_runs_for_algorithm(
+        hyperparameters_dataframe)
 
     # Generate latex code
     # Clean dataframe
 
     # Format hyperparameter values BEFORE splitting the dataframe, because that sometimes changes the data types
-    hyperparameters_dataframe.fillna("-", inplace = True)
-    hyperparameters_dataframe.index = pd.MultiIndex.from_frame(hyperparameters_dataframe.index.to_frame().fillna('-'))
+    hyperparameters_dataframe.fillna("-", inplace=True)
+    hyperparameters_dataframe.index = pd.MultiIndex.from_frame(
+        hyperparameters_dataframe.index.to_frame().fillna('-'))
     hyperparameters_dataframe.apply(_format_hyperparameter_row_values, axis=1)
 
-    hyperparameters_file = open(result_folder_path + file_name_suffix + "_latex_hyperparameters.txt", "w")
-    _print_latex_hyperparameters_from_dataframe(hyperparameters_dataframe, hyperparameters_file)
-
+    hyperparameters_file = open(
+        result_folder_path + file_name_suffix + "_latex_hyperparameters.txt", "w")
+    _print_latex_hyperparameters_from_dataframe(
+        hyperparameters_dataframe, hyperparameters_file)
 
     if split_per_algorithm_type:
 
@@ -508,59 +507,56 @@ def generate_latex_hyperparameters(result_folder_path,
             "KNN": [UserKNNCFRecommender,
                     ItemKNNCFRecommender,
                     ],
-            "ML_graph":[P3alphaRecommender,
-                        RP3betaRecommender,
-                        EASE_R_Recommender,
-                        SLIM_BPR_Cython,
-                        SLIMElasticNetRecommender,
-                        MatrixFactorization_BPR_Cython,
-                        MatrixFactorization_SVDpp_Cython,
-                        PureSVDRecommender,
-                        NMFRecommender,
-                        IALSRecommender,
-                        ],
+            "ML_graph": [P3alphaRecommender,
+                         RP3betaRecommender,
+                         EASE_R_Recommender,
+                         SLIM_BPR_Cython,
+                         SLIMElasticNetRecommender,
+                         MatrixFactorization_BPR_Cython,
+                         MatrixFactorization_SVDpp_Cython,
+                         PureSVDRecommender,
+                         NMFRecommender,
+                         IALSRecommender,
+                         ],
             "CBF": [ItemKNNCBFRecommender,
                     UserKNNCBFRecommender,
                     ],
-            "CFCBF":[ItemKNN_CFCBF_Hybrid_Recommender,
-                    UserKNN_CFCBF_Hybrid_Recommender,
-                    ],
-            "neural":other_algorithm_list,
+            "CFCBF": [ItemKNN_CFCBF_Hybrid_Recommender,
+                      UserKNN_CFCBF_Hybrid_Recommender,
+                      ],
+            "neural": other_algorithm_list,
         }
-
 
         for group_label, group_alg_list in algorithm_type_group.items():
             # Create a dataframe with only algorithms in group
-            group_label_list = [_get_printable_recommender_name(recommender_class.RECOMMENDER_NAME) for recommender_class in group_alg_list]
+            group_label_list = [_get_printable_recommender_name(
+                recommender_class.RECOMMENDER_NAME) for recommender_class in group_alg_list]
 
             # The group is matched if the index contains the label of the algorithm + a space or ends (to account for ItemKNN CF cosine and such)
-            group_entries_flag = hyperparameters_dataframe.index.get_level_values("algorithm_row_label").str.contains('|'.join(["{label}\s|{label}$".format(label = label) for label in group_label_list]))
+            group_entries_flag = hyperparameters_dataframe.index.get_level_values("algorithm_row_label").str.contains(
+                '|'.join(["{label}\s|{label}$".format(label=label) for label in group_label_list]))
             group_hyperparameters_dataframe = hyperparameters_dataframe[group_entries_flag]
 
-            if len(group_hyperparameters_dataframe)>0:
-                hyperparameters_file = open(result_folder_path + file_name_suffix + "_latex_hyperparameters_" + group_label + ".txt", "w")
-                _print_latex_hyperparameters_from_dataframe(group_hyperparameters_dataframe, hyperparameters_file)
-
-
-
-
+            if len(group_hyperparameters_dataframe) > 0:
+                hyperparameters_file = open(
+                    result_folder_path + file_name_suffix + "_latex_hyperparameters_" + group_label + ".txt", "w")
+                _print_latex_hyperparameters_from_dataframe(
+                    group_hyperparameters_dataframe, hyperparameters_file)
 
 
 def _remove_duplicate_group_separator(result_dataframe):
 
-        group_separator_flag = result_dataframe.index.str.startswith('algorithm_group')
-        duplicate_consecutive_separators = np.logical_and(group_separator_flag[:-1], group_separator_flag[1:])
-        duplicate_consecutive_separators = np.append(duplicate_consecutive_separators, False)
+    group_separator_flag = result_dataframe.index.str.startswith(
+        'algorithm_group')
+    duplicate_consecutive_separators = np.logical_and(
+        group_separator_flag[:-1], group_separator_flag[1:])
+    duplicate_consecutive_separators = np.append(
+        duplicate_consecutive_separators, False)
 
-        result_dataframe = result_dataframe[np.logical_not(duplicate_consecutive_separators)]
+    result_dataframe = result_dataframe[np.logical_not(
+        duplicate_consecutive_separators)]
 
-        return result_dataframe
-
-
-
-import os
-import numpy as np
-import pandas as pd
+    return result_dataframe
 
 
 class ResultFolderLoader(object):
@@ -568,41 +564,41 @@ class ResultFolderLoader(object):
 
     # Default list of algorithms to be loaded
     # Each None will represent a horizontal line in the latex table
+    # TODO commentare le baseline di cui non si hanno i dati
     _DEFAULT_BASE_ALGORITHM_LIST = [
-        Random,
+        # Random,
         TopPop,
-        GlobalEffects,
+        # GlobalEffects,
         None,
-        UserKNNCFRecommender,
+        # UserKNNCFRecommender,
         ItemKNNCFRecommender,
-        P3alphaRecommender,
+        # P3alphaRecommender,
         RP3betaRecommender,
         GraphFilterCFRecommender,
         None,
-        EASE_R_Recommender,
-        SLIM_BPR_Cython,
-        SLIMElasticNetRecommender,
-        NegHOSLIMRecommender,
-        NegHOSLIMElasticNetRecommender,
-        # MatrixFactorization_AsySVD_Cython,
+        # EASE_R_Recommender,
+        # SLIM_BPR_Cython,
+        # SLIMElasticNetRecommender,
+        # NegHOSLIMRecommender,
+        # NegHOSLIMElasticNetRecommender,
+        # # MatrixFactorization_AsySVD_Cython,
         MatrixFactorization_BPR_Cython,
-        MatrixFactorization_WARP_Cython,
-        MatrixFactorization_SVDpp_Cython,
+        # MatrixFactorization_WARP_Cython,
+        # MatrixFactorization_SVDpp_Cython,
         PureSVDRecommender,
-        NMFRecommender,
-        IALSRecommender,
-        LightFMCFRecommender,
-        MultVAERecommender,
+        # NMFRecommender,
+        # IALSRecommender,
+        # LightFMCFRecommender,
+        # MultVAERecommender,
         None,
-        ItemKNNCBFRecommender,
-        UserKNNCBFRecommender,
+        # ItemKNNCBFRecommender,
+        # UserKNNCBFRecommender,
         None,
-        ItemKNN_CFCBF_Hybrid_Recommender,
-        UserKNN_CFCBF_Hybrid_Recommender,
-        LightFMItemHybridRecommender,
-        LightFMUserHybridRecommender,
+        # ItemKNN_CFCBF_Hybrid_Recommender,
+        # UserKNN_CFCBF_Hybrid_Recommender,
+        # LightFMItemHybridRecommender,
+        # LightFMUserHybridRecommender,
     ]
-
 
     # Dictionary used to translate the metric name into Latex column header
     # Metrics whose name is not in this dictionary will be displayed with str(metric_key)
@@ -626,44 +622,45 @@ class ResultFolderLoader(object):
         "DIVERSITY_GINI":            "\\begin{tabular}{@{}c@{}}Div. \\\\ Gini\\end{tabular}",
         "SHANNON_ENTROPY":           "\\begin{tabular}{@{}c@{}}Div. \\\\ Shannon\\end{tabular}",
         "AVERAGE_POPULARITY":        "\\begin{tabular}{@{}c@{}}Avg. \\\\ Popularity\\end{tabular}",
-        }
-
-
-
+    }
 
     def __init__(self, folder_path,
-                 base_algorithm_list = None,
-                 other_algorithm_list = None,
-                 KNN_similarity_list = None,
-                 ICM_names_list = None,
-                 UCM_names_list = None):
+                 base_algorithm_list=None,
+                 other_algorithm_list=None,
+                 KNN_similarity_list=None,
+                 ICM_names_list=None,
+                 UCM_names_list=None):
 
         super(ResultFolderLoader, self).__init__()
 
-        assert os.path.isdir(folder_path), "ResultFolderLoader: folder_path does not exist '{}'".format(folder_path)
+        assert os.path.isdir(
+            folder_path), "ResultFolderLoader: folder_path does not exist '{}'".format(folder_path)
 
         self._folder_path = folder_path
-        self._algorithm_list = base_algorithm_list.copy() if base_algorithm_list is not None else self._DEFAULT_BASE_ALGORITHM_LIST.copy()
+        self._algorithm_list = base_algorithm_list.copy(
+        ) if base_algorithm_list is not None else self._DEFAULT_BASE_ALGORITHM_LIST.copy()
 
         self._ICM_names_list = ICM_names_list
         self._UCM_names_list = UCM_names_list
 
-        self._KNN_similarity_list = KNN_similarity_list if KNN_similarity_list is not None else ["cosine"]
-        self._other_algorithm_list = other_algorithm_list.copy() if other_algorithm_list is not None else []
+        self._KNN_similarity_list = KNN_similarity_list if KNN_similarity_list is not None else [
+            "cosine"]
+        self._other_algorithm_list = other_algorithm_list.copy(
+        ) if other_algorithm_list is not None else []
 
         if other_algorithm_list is not None:
             self._algorithm_list.extend([None, *self._other_algorithm_list])
 
-
         self._metadata_list = _get_algorithm_metadata_to_print_list(self._folder_path,
-                                          algorithm_list = self._algorithm_list,
-                                          KNN_similarity_list = self._KNN_similarity_list,
-                                          ICM_names_list = self._ICM_names_list,
-                                          UCM_names_list = self._UCM_names_list
-                                          )
+                                                                    algorithm_list=self._algorithm_list,
+                                                                    KNN_similarity_list=self._KNN_similarity_list,
+                                                                    ICM_names_list=self._ICM_names_list,
+                                                                    UCM_names_list=self._UCM_names_list
+                                                                    )
 
     def _get_metric_label(self, metric_name):
-        metric_label = self._METRIC_NAME_TO_LATEX_LABEL_DICT[metric_name] if metric_name in self._METRIC_NAME_TO_LATEX_LABEL_DICT else metric_name
+        metric_label = self._METRIC_NAME_TO_LATEX_LABEL_DICT[
+            metric_name] if metric_name in self._METRIC_NAME_TO_LATEX_LABEL_DICT else metric_name
         return metric_label
 
     def _get_column_name(self, metric_name, cutoff):
@@ -672,8 +669,6 @@ class ResultFolderLoader(object):
 
     def get_metadata(self):
         return self._metadata_list.copy()
-
-
 
     def get_results_dataframe(self,
                               metrics_list,
@@ -686,16 +681,18 @@ class ResultFolderLoader(object):
         :return:
         """
 
-        algorithm_label_index = [row_dict["algorithm_row_label"] if row_dict is not None else "algorithm_group_{}".format(row_index) for row_index, row_dict in enumerate(self._metadata_list) ]
+        algorithm_label_index = [row_dict["algorithm_row_label"] if row_dict is not None else "algorithm_group_{}".format(
+            row_index) for row_index, row_dict in enumerate(self._metadata_list)]
 
         # The dataframe will have the algorithm label as index and the carthesian product of cutoff and metric as columns
-        cutoff_metric_multiindex = pd.MultiIndex.from_product([cutoffs_list, metrics_list])#, names=['cutoff', 'metric'])
-        result_dataframe = pd.DataFrame(None, index=algorithm_label_index, columns = cutoff_metric_multiindex)
+        cutoff_metric_multiindex = pd.MultiIndex.from_product(
+            [cutoffs_list, metrics_list])  # , names=['cutoff', 'metric'])
+        result_dataframe = pd.DataFrame(
+            None, index=algorithm_label_index, columns=cutoff_metric_multiindex)
         # result_dataframe.rename_axis("Algorithm", inplace=True)
 
         # Remove duplicate group separator
         result_dataframe = _remove_duplicate_group_separator(result_dataframe)
-
 
         for row_index, row_dict in enumerate(self._metadata_list):
 
@@ -712,19 +709,17 @@ class ResultFolderLoader(object):
                         result_on_last = search_metadata["result_on_last"]
 
                         if result_on_last is not None and cutoff in result_on_last.index and metric_name in result_on_last.columns:
-                            result_dataframe.loc[algorithm_row_label, (cutoff, metric_name)] = result_on_last.loc[cutoff, metric_name]
+                            result_dataframe.loc[algorithm_row_label, (
+                                cutoff, metric_name)] = result_on_last.loc[cutoff, metric_name]
 
         return result_dataframe
 
-
-
-
     def get_hyperparameters_dataframe(self):
 
-        column_labels = ["algorithm_row_label", "hyperparameter_name", "hyperparameter_value"]
+        column_labels = ["algorithm_row_label",
+                         "hyperparameter_name", "hyperparameter_value"]
 
         result_dataframe = pd.DataFrame(columns=column_labels)
-
 
         for row_index, row_dict in enumerate(self._metadata_list):
 
@@ -732,20 +727,19 @@ class ResultFolderLoader(object):
                 # Add None row to preserve the separation between different groups of algorithms
                 # I don't like this but is simple enough and it works
                 result_dataframe = result_dataframe.append({
-                        "algorithm_row_label": "algorithm_group_{}".format(row_index),
-                        "hyperparameter_name": None,
-                        "hyperparameter_value": None,
-                        }, ignore_index = True)
+                    "algorithm_row_label": "algorithm_group_{}".format(row_index),
+                    "hyperparameter_name": None,
+                    "hyperparameter_value": None,
+                }, ignore_index=True)
 
                 continue
-
 
             algorithm_row_label = row_dict["algorithm_row_label"]
             search_metadata = row_dict["search_metadata"]
 
             # If search failed or was not done, add placeholder
             if search_metadata is None or search_metadata["hyperparameters_best"] is None:
-                hyperparameters_best = {None:None}
+                hyperparameters_best = {None: None}
 
             else:
                 hyperparameters_best = search_metadata["hyperparameters_best"]
@@ -754,56 +748,53 @@ class ResultFolderLoader(object):
                 if len(hyperparameters_best) == 0:
                     continue
 
-
             for hyperparameter_name, hyperparameter_value in hyperparameters_best.items():
 
                 result_dataframe = result_dataframe.append({
-                                        "algorithm_row_label": algorithm_row_label,
-                                        "hyperparameter_name": hyperparameter_name,
-                                        "hyperparameter_value": hyperparameter_value,
-                                        }, ignore_index = True)
+                    "algorithm_row_label": algorithm_row_label,
+                    "hyperparameter_name": hyperparameter_name,
+                    "hyperparameter_value": hyperparameter_value,
+                }, ignore_index=True)
 
-        result_dataframe.set_index(["algorithm_row_label", "hyperparameter_name"], inplace=True)
+        result_dataframe.set_index(
+            ["algorithm_row_label", "hyperparameter_name"], inplace=True)
 
         return result_dataframe
-
-
-
-
 
     def generate_latex_results(self, output_file_path,
                                metrics_list,
                                cutoffs_list,
-                               n_decimals = 4,
-                               table_title = None,
-                               highlight_best = True,
-                               collapse_multicolumn_if_needed = True):
+                               n_decimals=4,
+                               table_title=None,
+                               highlight_best=True,
+                               collapse_multicolumn_if_needed=True):
 
-        result_dataframe = self.get_results_dataframe(metrics_list = metrics_list, cutoffs_list = cutoffs_list)
+        result_dataframe = self.get_results_dataframe(
+            metrics_list=metrics_list, cutoffs_list=cutoffs_list)
         output_file = open(output_file_path, "w")
 
         # If there is only a single cutoff, the multilevel columns can be collapsed
         if collapse_multicolumn_if_needed and (len(metrics_list) == 1):
-            result_dataframe.columns = ['@'.join([self._get_metric_label(col[1]), col[0]]).strip() for col in result_dataframe.columns.values]
+            result_dataframe.columns = [
+                '@'.join([self._get_metric_label(col[1]), col[0]]).strip() for col in result_dataframe.columns.values]
 
         else:
             # Rename columns in such a way that they are nicely printable in latex
-            result_dataframe.rename(columns= {col_name: "@ {}".format(col_name) for col_name in result_dataframe.columns.levels[0]},
-                                    level = 0, inplace = True)
+            result_dataframe.rename(columns={col_name: "@ {}".format(col_name) for col_name in result_dataframe.columns.levels[0]},
+                                    level=0, inplace=True)
 
-            result_dataframe.rename(columns= {col_name:self._get_metric_label(col_name) for col_name in result_dataframe.columns.levels[1]},
-                                    level = 1, inplace = True)
-
-
+            result_dataframe.rename(columns={col_name: self._get_metric_label(col_name) for col_name in result_dataframe.columns.levels[1]},
+                                    level=1, inplace=True)
 
         if highlight_best:
 
-            dataframe_baselines = result_dataframe.iloc[:-len(self._other_algorithm_list), :]
-            dataframe_other_algs = result_dataframe.iloc[-len(self._other_algorithm_list):, :]
+            dataframe_baselines = result_dataframe.iloc[:-
+                                                        len(self._other_algorithm_list), :]
+            dataframe_other_algs = result_dataframe.iloc[-len(
+                self._other_algorithm_list):, :]
 
             dataframe_best_baseline_value = dataframe_baselines.max(axis=0)
             dataframe_best_other_alg_value = dataframe_other_algs.max(axis=0)
-
 
             def _format_result_row_values(dataframe_row_series, dataframe_threshold_value, n_decimals):
 
@@ -815,37 +806,40 @@ class ResultFolderLoader(object):
                         continue
 
                     if result_value > dataframe_threshold_value[dataset_column]:
-                        result_string = "\\textbf{{{:.{n_decimals}f}}}".format(result_value, n_decimals = n_decimals)
+                        result_string = "\\textbf{{{:.{n_decimals}f}}}".format(
+                            result_value, n_decimals=n_decimals)
                     else:
-                        result_string = "{:.{n_decimals}f}".format(result_value, n_decimals = n_decimals)
+                        result_string = "{:.{n_decimals}f}".format(
+                            result_value, n_decimals=n_decimals)
 
                     dataframe_row_series[dataset_column] = result_string
 
                 return dataframe_row_series
 
             dataframe_baselines = dataframe_baselines.apply(partial(_format_result_row_values,
-                                           dataframe_threshold_value = dataframe_best_other_alg_value,
-                                           n_decimals = n_decimals,
-                                           ), axis=1, result_type = "broadcast")
+                                                                    dataframe_threshold_value=dataframe_best_other_alg_value,
+                                                                    n_decimals=n_decimals,
+                                                                    ), axis=1, result_type="broadcast")
 
             dataframe_other_algs = dataframe_other_algs.apply(partial(_format_result_row_values,
-                                           dataframe_threshold_value = dataframe_best_baseline_value,
-                                           n_decimals = n_decimals,
-                                           ), axis=1, result_type = "broadcast")
+                                                                      dataframe_threshold_value=dataframe_best_baseline_value,
+                                                                      n_decimals=n_decimals,
+                                                                      ), axis=1, result_type="broadcast")
 
-            result_dataframe = pd.concat([dataframe_baselines, dataframe_other_algs], ignore_index=False)
+            result_dataframe = pd.concat(
+                [dataframe_baselines, dataframe_other_algs], ignore_index=False)
 
-
-
-        result_dataframe.fillna("-", inplace = True)
+        result_dataframe.fillna("-", inplace=True)
 
         n_metrics_cutoffs = len(result_dataframe.columns)
-        latex_code = result_dataframe.to_latex(index = True,
-                                               escape = False, #do not automatically escape special characters
-                                               multicolumn = True,
-                                               multicolumn_format = "c",
-                                               column_format = "l|" + "{}|".format("c"*len(metrics_list))*len(cutoffs_list),
-                                               float_format = "{:.4f}".format,
+        latex_code = result_dataframe.to_latex(index=True,
+                                               escape=False,  # do not automatically escape special characters
+                                               multicolumn=True,
+                                               multicolumn_format="c",
+                                               column_format="l|" + \
+                                               "{}|".format(
+                                                   "c"*len(metrics_list))*len(cutoffs_list),
+                                               float_format="{:.4f}".format,
                                                )
 
         # Replace group separator with \midrule
@@ -857,10 +851,10 @@ class ResultFolderLoader(object):
         # Prints table title
         if table_title is not None:
             header_old = "(\\\\toprule\n)"
-            header_custom_title = r"\1\t&\t\\multicolumn{{{}}}{{c}}{{{}}} \\\\\n".format(n_metrics_cutoffs, table_title)
+            header_custom_title = r"\1\t&\t\\multicolumn{{{}}}{{c}}{{{}}} \\\\\n".format(
+                n_metrics_cutoffs, table_title)
 
             latex_code = re.sub(header_old, header_custom_title, latex_code)
-
 
         # ad vline at the end of the line whith multicolumn
         separator_old = "(\\\multicolumn{[^}]*}{[^}]*}{[^}]*}\s*)(\\\\\\\\\n)"
@@ -874,23 +868,20 @@ class ResultFolderLoader(object):
 
         output_file.close()
 
-
-
-
-
     def get_time_statistics_dataframe(self,
-                                     n_decimals = 2,
-                                     n_evaluation_users = None,
-                                     ):
-
+                                      n_decimals=2,
+                                      n_evaluation_users=None,
+                                      ):
 
         # COLUMN HEADERS
         column_labels = ["Train Time",
                          "Recommendation Time",
                          "Recommendation Throughput"]
 
-        algorithm_label_index = [row_dict["algorithm_row_label"] if row_dict is not None else "algorithm_group_{}".format(row_index) for row_index, row_dict in enumerate(self._metadata_list) ]
-        result_dataframe = pd.DataFrame(None, index=algorithm_label_index, columns=column_labels)
+        algorithm_label_index = [row_dict["algorithm_row_label"] if row_dict is not None else "algorithm_group_{}".format(
+            row_index) for row_index, row_dict in enumerate(self._metadata_list)]
+        result_dataframe = pd.DataFrame(
+            None, index=algorithm_label_index, columns=column_labels)
 
         # Remove duplicate group separator
         result_dataframe = _remove_duplicate_group_separator(result_dataframe)
@@ -907,16 +898,17 @@ class ResultFolderLoader(object):
 
                 # Print mean and stdv of train time
                 value_string = _time_string_builder(search_metadata["time_df"]["train"].tolist(),
-                                                          n_decimals=n_decimals)
+                                                    n_decimals=n_decimals)
 
-                result_dataframe.loc[algorithm_row_label, "Train Time"] = value_string
+                result_dataframe.loc[algorithm_row_label,
+                                     "Train Time"] = value_string
 
                 # Print mean and stdv of evaluation time
                 value_string = _time_string_builder(search_metadata["time_df"]["test"].tolist(),
                                                     n_decimals=n_decimals)
 
-                result_dataframe.loc[algorithm_row_label, "Recommendation Time"] = value_string
-
+                result_dataframe.loc[algorithm_row_label,
+                                     "Recommendation Time"] = value_string
 
                 # Print n of users evaluated per second for the last model
                 optimal_hyperparameters_index = search_metadata["hyperparameters_best_index"]
@@ -924,37 +916,37 @@ class ResultFolderLoader(object):
                 if optimal_hyperparameters_index is None:
                     optimal_hyperparameters_test_time = None
                 else:
-                    optimal_hyperparameters_test_time = search_metadata["time_df"].loc[optimal_hyperparameters_index, "test"]
+                    optimal_hyperparameters_test_time = search_metadata[
+                        "time_df"].loc[optimal_hyperparameters_index, "test"]
 
                 if n_evaluation_users is not None and optimal_hyperparameters_test_time is not None:
-                    value_string = "{:.0f}".format(n_evaluation_users/optimal_hyperparameters_test_time)
-                    result_dataframe.loc[algorithm_row_label, "Recommendation Throughput"] = value_string
-
+                    value_string = "{:.0f}".format(
+                        n_evaluation_users/optimal_hyperparameters_test_time)
+                    result_dataframe.loc[algorithm_row_label,
+                                         "Recommendation Throughput"] = value_string
 
         return result_dataframe
 
-
-
     def generate_latex_time_statistics(self, output_file_path,
-                                       n_decimals = 2,
-                                       n_evaluation_users = None,
-                                       table_title = None):
+                                       n_decimals=2,
+                                       n_evaluation_users=None,
+                                       table_title=None):
 
-        result_dataframe = self.get_time_statistics_dataframe(n_decimals = n_decimals, n_evaluation_users = n_evaluation_users)
+        result_dataframe = self.get_time_statistics_dataframe(
+            n_decimals=n_decimals, n_evaluation_users=n_evaluation_users)
         output_file = open(output_file_path, "w")
 
-        result_dataframe.rename(columns= {"Recommendation Time":"\\begin{tabular}{@{}c@{}}Recommendation\\\\Time\\end{tabular}",
-                                          "Recommendation Throughput": "\\begin{tabular}{@{}c@{}}Recommendation\\\\Throughput\\end{tabular}"},
-                                inplace = True)
+        result_dataframe.rename(columns={"Recommendation Time": "\\begin{tabular}{@{}c@{}}Recommendation\\\\Time\\end{tabular}",
+                                         "Recommendation Throughput": "\\begin{tabular}{@{}c@{}}Recommendation\\\\Throughput\\end{tabular}"},
+                                inplace=True)
 
-
-        result_dataframe.fillna("-", inplace = True)
+        result_dataframe.fillna("-", inplace=True)
 
         n_columns = len(result_dataframe.columns)
-        latex_code = result_dataframe.to_latex(index = True,
-                                               escape = False, #do not automatically escape special characters
-                                               column_format = "l|" + "r"*n_columns + "|",
-                                               float_format = "{:.4f}".format,
+        latex_code = result_dataframe.to_latex(index=True,
+                                               escape=False,  # do not automatically escape special characters
+                                               column_format="l|" + "r"*n_columns + "|",
+                                               float_format="{:.4f}".format,
                                                )
 
         # Replace group separator with \midrule
@@ -963,11 +955,11 @@ class ResultFolderLoader(object):
 
         latex_code = re.sub(separator_old, separator_midrule, latex_code)
 
-
         # Prints table title
         if table_title is not None:
             header_old = "(\\\\toprule\n)"
-            header_custom_title = r"\1\t&\t\\multicolumn{{{}}}{{c}}{{{}}}  \\\\\n".format(n_columns, table_title)
+            header_custom_title = r"\1\t&\t\\multicolumn{{{}}}{{c}}{{{}}}  \\\\\n".format(
+                n_columns, table_title)
 
             latex_code = re.sub(header_old, header_custom_title, latex_code)
 
@@ -982,5 +974,3 @@ class ResultFolderLoader(object):
         output_file.flush()
 
         output_file.close()
-
-

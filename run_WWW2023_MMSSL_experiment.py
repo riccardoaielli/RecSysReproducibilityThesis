@@ -311,7 +311,7 @@ def run_this_algorithm_experiment(dataset_name,
 
     # train
     config['seed'] = 2022
-    config['epoch'] = 400  # TODO default epochs 1000
+    config['epoch'] = 1000  # TODO default epochs 1000
     config['embed_size'] = 64
     config['batch_size'] = 1024
     config['D_lr'] = 3e-4
@@ -492,18 +492,30 @@ def run_this_algorithm_experiment(dataset_name,
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "article_metrics"),
                                              metrics_list=[
                                                  'RECALL', 'PRECISION', 'NDCG'],
+                                             cutoffs_list=[20],
+                                             table_title=None,
+                                             highlight_best=True)
+
+        result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "cutoffs"),
+                                             metrics_list=[
+                                                 'RECALL', 'PRECISION', 'NDCG'],
+                                             cutoffs_list=[10, 30, 50],
+                                             table_title=None,
+                                             highlight_best=True)
+
+        result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "all_metrics"),
+                                             metrics_list=[
+                                                 'PRECISION', 'RECALL', 'MAP', 'MRR', 'NDCG', 'F1', 'HR'],
                                              cutoffs_list=[cutoff_to_optimize],
                                              table_title=None,
                                              highlight_best=True)
 
-        result_loader.generate_latex_results(
-            result_folder_path + "{}_{}_{}_latex_results.txt".format(
-                ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
-            metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
-                          "DIVERSITY_GINI", "SHANNON_ENTROPY"],
-            cutoffs_list=[20],
-            table_title=None,
-            highlight_best=True)
+        result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
+                                             metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
+                                                           "DIVERSITY_GINI", "SHANNON_ENTROPY"],
+                                             cutoffs_list=[cutoff_to_optimize],
+                                             table_title=None,
+                                             highlight_best=True)
 
         result_loader.generate_latex_time_statistics(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "time"),
                                                      n_evaluation_users=np.sum(
@@ -536,7 +548,8 @@ if __name__ == '__main__':
     # Forse tiktok ha biosgno di caricare anche audio_feat, non è impementato nel modello originale
     # quindi ignorerei le audio feautures
     # , "sports", "baby", "allrecipes"]  # TODO lista datasets
-    dataset_list = ["tiktok"]  # , "baby", "sports", "allrecipes"]
+    # , "baby", "sports", "allrecipes", "tiktok"]
+    dataset_list = ["baby", "sports", "allrecipes", "tiktok"]
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))

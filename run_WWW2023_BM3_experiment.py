@@ -367,12 +367,18 @@ def run_this_algorithm_experiment(dataset_name,
         if dataset_name == 'baby':
             paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0883
             paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0383
+            paper_results.loc[10, 'RECALL'] = 0.0564
+            paper_results.loc[10, 'NDCG'] = 0.0301
         elif dataset_name == 'elec':
             paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0648
             paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0302
+            paper_results.loc[10, 'RECALL'] = 0.0437
+            paper_results.loc[10, 'NDCG'] = 0.0247
         elif dataset_name == 'sports':
             paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0980
             paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0438
+            paper_results.loc[10, 'RECALL'] = 0.0656
+            paper_results.loc[10, 'NDCG'] = 0.0355
         else:
             paper_results = None
 
@@ -393,18 +399,30 @@ def run_this_algorithm_experiment(dataset_name,
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "article_metrics"),
                                              metrics_list=[
                                                  'RECALL', 'NDCG'],
+                                             cutoffs_list=[10, 20],
+                                             table_title=None,
+                                             highlight_best=True)
+
+        result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "cutoffs"),
+                                             metrics_list=[
+                                                 'RECALL', 'NDCG'],
+                                             cutoffs_list=[1, 10, 30, 50, 100],
+                                             table_title=None,
+                                             highlight_best=True)
+
+        result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "all_metrics"),
+                                             metrics_list=[
+                                                 'PRECISION', 'RECALL', 'MAP', 'MRR', 'NDCG', 'F1', 'HR'],
                                              cutoffs_list=[cutoff_to_optimize],
                                              table_title=None,
                                              highlight_best=True)
 
-        result_loader.generate_latex_results(
-            result_folder_path + "{}_{}_{}_latex_results.txt".format(
-                ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
-            metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
-                          "DIVERSITY_GINI", "SHANNON_ENTROPY"],
-            cutoffs_list=[20],
-            table_title=None,
-            highlight_best=True)
+        result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
+                                             metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
+                                                           "DIVERSITY_GINI", "SHANNON_ENTROPY"],
+                                             cutoffs_list=[cutoff_to_optimize],
+                                             table_title=None,
+                                             highlight_best=True)
 
         result_loader.generate_latex_time_statistics(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "time"),
                                                      n_evaluation_users=np.sum(
