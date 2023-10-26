@@ -421,7 +421,8 @@ class MMSSL_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Stopp
         u_sim_list = []
 
         for i_b in range(num_batches):
-            index = indices[i_b * self.config['batch_size']:(i_b + 1) * self.config['batch_size']]
+            index = indices[i_b * self.config['batch_size']
+                :(i_b + 1) * self.config['batch_size']]
             sim = torch.mm(topk_u, item_final[index].T)
             sim_gt = torch.multiply(sim, (1-u_ui[:, index]))
             u_sim_list.append(sim_gt)

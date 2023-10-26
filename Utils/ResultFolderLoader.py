@@ -618,6 +618,7 @@ class ResultFolderLoader(object):
         "DIVERSITY_MEAN_INTER_LIST": "\\begin{tabular}{@{}c@{}}Div. \\\\ MIL\\end{tabular}",
         "DIVERSITY_HERFINDAHL":      "\\begin{tabular}{@{}c@{}}Div. \\\\ HHI\\end{tabular}",
         "COVERAGE_ITEM":             "\\begin{tabular}{@{}c@{}}Cov. \\\\ Item\\end{tabular}",
+        "COVERAGE_ITEM_HIT":             "\\begin{tabular}{@{}c@{}}Cov. \\\\ Item Hit\\end{tabular}",
         "COVERAGE_USER":             "\\begin{tabular}{@{}c@{}}Cov. \\\\ User\\end{tabular}",
         "DIVERSITY_GINI":            "\\begin{tabular}{@{}c@{}}Div. \\\\ Gini\\end{tabular}",
         "SHANNON_ENTROPY":           "\\begin{tabular}{@{}c@{}}Div. \\\\ Shannon\\end{tabular}",

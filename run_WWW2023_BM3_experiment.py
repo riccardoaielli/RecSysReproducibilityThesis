@@ -406,13 +406,13 @@ def run_this_algorithm_experiment(dataset_name,
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "cutoffs"),
                                              metrics_list=[
                                                  'RECALL', 'NDCG'],
-                                             cutoffs_list=[1, 10, 30, 50, 100],
+                                             cutoffs_list=[5, 10, 50, 100],
                                              table_title=None,
                                              highlight_best=True)
 
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "all_metrics"),
                                              metrics_list=[
-                                                 'PRECISION', 'RECALL', 'MAP', 'MRR', 'NDCG', 'F1', 'HR'],
+                                                 'PRECISION', 'RECALL', 'MAP', 'MRR', 'NDCG', 'F1', 'HIT_RATE'],
                                              cutoffs_list=[cutoff_to_optimize],
                                              table_title=None,
                                              highlight_best=True)

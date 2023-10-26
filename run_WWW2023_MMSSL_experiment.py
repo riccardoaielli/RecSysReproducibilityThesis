@@ -463,14 +463,14 @@ def run_this_algorithm_experiment(dataset_name,
             paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0470
 
         elif dataset_name == "allrecipes":
-            paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.1277
-            paper_results.loc[cutoff_to_optimize, 'PRECISION'] = 0.1277
-            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0879
-
-        elif dataset_name == "tiktok":
             paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0367
             paper_results.loc[cutoff_to_optimize, 'PRECISION'] = 0.0018
             paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0135
+
+        elif dataset_name == "tiktok":
+            paper_results.loc[cutoff_to_optimize, 'RECALL'] = 0.0921
+            paper_results.loc[cutoff_to_optimize, 'PRECISION'] = 0.0046
+            paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.0392
 
         else:
             paper_results = None
@@ -499,13 +499,13 @@ def run_this_algorithm_experiment(dataset_name,
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "cutoffs"),
                                              metrics_list=[
                                                  'RECALL', 'PRECISION', 'NDCG'],
-                                             cutoffs_list=[10, 30, 50],
+                                             cutoffs_list=[5, 10, 50],
                                              table_title=None,
                                              highlight_best=True)
 
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "all_metrics"),
                                              metrics_list=[
-                                                 'PRECISION', 'RECALL', 'MAP', 'MRR', 'NDCG', 'F1', 'HR'],
+                                                 'PRECISION', 'RECALL', 'MAP', 'MRR', 'NDCG', 'F1', 'HIT_RATE'],
                                              cutoffs_list=[cutoff_to_optimize],
                                              table_title=None,
                                              highlight_best=True)
@@ -549,7 +549,7 @@ if __name__ == '__main__':
     # quindi ignorerei le audio feautures
     # , "sports", "baby", "allrecipes"]  # TODO lista datasets
     # , "baby", "sports", "allrecipes", "tiktok"]
-    dataset_list = ["baby", "sports", "allrecipes", "tiktok"]
+    dataset_list = ["sports"]
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))
