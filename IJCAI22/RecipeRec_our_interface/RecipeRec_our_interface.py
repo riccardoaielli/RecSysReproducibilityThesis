@@ -594,7 +594,7 @@ class custom_GATConv(nn.Module):
                 self.res_fc = nn.Linear(
                     self._in_dst_feats, num_heads * out_feats, bias=False)
             else:
-                self.res_fc = Identity()
+                self.res_fc = Identity()  # TODO risolvere errore
         else:
             self.register_buffer('res_fc', None)
         self.reset_parameters()
@@ -859,7 +859,8 @@ class RecipeRec(nn.Module):
             nn.Linear(128, 128),
             nn.ReLU()
         )
-        self.gnn = GNN(128, 128, 128, graph.etypes, attentions_heads)
+        self.gnn = GNN(128, 128, 128, graph.etypes,
+                       attentions_heads)  # TODO???
         self.pred = ScorePredictor()
         self.setTransformer_ = SetTransformer(drop_out)
         self.ingre_neighbor_tensor = ingre_neighbor_tensor

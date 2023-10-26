@@ -29,7 +29,7 @@ from IJCAI22.RecipeRec_our_interface.RecipeRec_RecommenderWrapper import RecipeR
 from IJCAI22.RecipeRec_our_interface.RecipeRecDataReader import RecipeRecDataReader
 
 
-def _run_algorithm_fixed_hyperparameters(experiment_configuration,
+def _run_algorithm_fixed_hyperparameters(experiment_configuration,  # TODO
                                          graph,
                                          train_graph,
                                          val_graph,
@@ -68,7 +68,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i pasrametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs],
+            experiment_configuration.URM_train, graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs],  # TODO no test, no val
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -81,6 +81,8 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     # Unione di train e validation
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
+
+    # TODO aggiungi final test
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -112,7 +114,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train, graph,
-                                     train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs],
+                                     train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs],  # TODO
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -120,6 +122,8 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args_last_test = recommender_input_args.copy()
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
+
+    # TODO aggiungi for final test
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -163,12 +167,15 @@ def run_this_algorithm_experiment(dataset_name,
     val_edgeloader = dataset.val_edgeloader
     test_edgeloader = dataset.test_edgeloader
     n_test_negs = dataset.n_test_negs
+    # TODO vedi dati
 
     URM_train_last_test = URM_train + URM_validation
 
+    # TODO fai somma for final test
+
     # Ensure IMPLICIT data and disjoint test-train split
     # Verifica che i dati siano impliciti
-    # assert_implicit_data([URM_train, URM_validation, URM_test])
+    # assert_implicit_data([URM_train, URM_validation, URM_test]) # TODO controlla assert implicit
     # Verifica che i dati siano disgiunti
     assert_disjoint_matrices([URM_train, URM_validation, URM_test])
 
@@ -235,12 +242,12 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    use_gpu = True
+    use_gpu = False
 
-    all_hyperparameters = {
+    all_hyperparameters = {  # TODO
         'learning_rate': 0.005,
         'drop_out': 0.1,
-        # TODO cambiare epochs a 100
+        # TODO cambiare epochs (nel codice è segnato 50 nel paper 100)
         'epochs': 1,
         'batch_size': 1024,
         'embedding_size': 128,  # hidden size
@@ -250,49 +257,46 @@ def run_this_algorithm_experiment(dataset_name,
         'gamma': 0.9,
     }
 
-    max_epochs_for_earlystopping = 500
-    min_epochs_for_earlystopping = 250
+    max_epochs_for_earlystopping = 1  # TODO penso 50
+    min_epochs_for_earlystopping = 0
 
     if flag_article_default:
 
-        # TODO cos'è sto fold_index corrisponde in qualche modo ai diversi dataset?
-        for fold_index in range(1, 6):
+        try:
 
-            try:
-                fold_folder = this_model_folder_path + "{}/".format(fold_index)
+            # Funzione che esegue il modello con gli iperparametri settati
+            _run_algorithm_fixed_hyperparameters(experiment_configuration,  # TODO
+                                                 graph,
+                                                 train_graph,
+                                                 val_graph,
+                                                 train_edgeloader,
+                                                 val_edgeloader,
+                                                 test_edgeloader,
+                                                 n_test_negs,
+                                                 RecipeRec_RecommenderWrapper,  # Classe del metodo che deve eseguire
+                                                 all_hyperparameters,
+                                                 max_epochs_for_earlystopping,
+                                                 min_epochs_for_earlystopping,
+                                                 this_model_folder_path,
+                                                 use_gpu)
 
-                # Funzione che esegue il modello con gli iperparametri settati
-                """ _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                                     graph,
-                                                     train_graph,
-                                                     val_graph,
-                                                     train_edgeloader,
-                                                     val_edgeloader,
-                                                     test_edgeloader,
-                                                     n_test_negs,
-                                                     RecipeRec_RecommenderWrapper,  # Classe del metodo che deve eseguire
-                                                     all_hyperparameters,
-                                                     max_epochs_for_earlystopping,
-                                                     min_epochs_for_earlystopping,
-                                                     fold_folder,
-                                                     use_gpu) """
+            # # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
+            # # TODO sostituire use_gpu = True
+            # recommender_instance = RecipeRec_RecommenderWrapper(experiment_configuration.URM_train,
+            #                                                     graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs, use_gpu=True)
+            # # il ** srotola i componenti del dizionario e li passa come parametri separati
+            # recommender_instance.fit(**all_hyperparameters)
 
-                # TODO sostituisce per il primo giro senza early stopping la funzione _run_algorithm_fixed_hyperparameters sopra
-                # TODO sostituire use_gpu = True
-                recommender_instance = RecipeRec_RecommenderWrapper(experiment_configuration.URM_train,
-                                                                    graph, train_graph, val_graph, train_edgeloader, val_edgeloader, test_edgeloader, n_test_negs, use_gpu=True)
-                # il ** srotola i componenti del dizionario e li passa come parametri separati
-                recommender_instance.fit(**all_hyperparameters)
+            # # Fa evaluation del modello modello migliore addestrato sopra nella fit
+            # results_df, _ = evaluator_validation.evaluateRecommender(
+            #     recommender_instance)
 
-                # Fa evaluation del modello modello migliore addestrato sopra nella fit
-                results_df, _ = evaluator_validation.evaluateRecommender(
-                    recommender_instance)
+        except Exception as e:
+            print("On recommender {} Exception {}".format(
+                RecipeRec_RecommenderWrapper, str(e)))
+            traceback.print_exc()
 
-            except Exception as e:
-                print("On recommender {} Exception {}".format(
-                    RecipeRec_RecommenderWrapper, str(e)))
-                traceback.print_exc()
-
+    ## NON DA FARE ##
     if flag_article_tune:
 
         n_users, n_items = URM_train.shape
@@ -379,18 +383,30 @@ def run_this_algorithm_experiment(dataset_name,
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "article_metrics"),
                                              metrics_list=[
                                                  'HIT_RATE', 'NDCG'],
+                                             cutoffs_list=[1, 5, 10],
+                                             table_title=None,
+                                             highlight_best=True)
+
+        result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "cutoffs"),
+                                             metrics_list=[
+                                                 'HIT_RATE', 'HIT_RATE'],
+                                             cutoffs_list=[20, 30, 50],
+                                             table_title=None,
+                                             highlight_best=True)
+
+        result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "all_metrics"),
+                                             metrics_list=[
+                                                 'PRECISION', 'RECALL', 'MAP', 'MRR', 'NDCG', 'F1', 'HIT_RATE'],
                                              cutoffs_list=[cutoff_to_optimize],
                                              table_title=None,
                                              highlight_best=True)
 
-        result_loader.generate_latex_results(
-            result_folder_path + "{}_{}_{}_latex_results.txt".format(
-                ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
-            metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST",
-                          "COVERAGE_ITEM", "DIVERSITY_GINI", "SHANNON_ENTROPY"],
-            cutoffs_list=cutoff_list,
-            table_title=None,
-            highlight_best=True)
+        result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "beyond_accuracy_metrics"),
+                                             metrics_list=["NOVELTY", "DIVERSITY_MEAN_INTER_LIST", "COVERAGE_ITEM", "COVERAGE_ITEM_HIT",
+                                                           "DIVERSITY_GINI", "SHANNON_ENTROPY"],
+                                             cutoffs_list=[cutoff_to_optimize],
+                                             table_title=None,
+                                             highlight_best=True)
 
         result_loader.generate_latex_time_statistics(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "time"),
                                                      n_evaluation_users=np.sum(

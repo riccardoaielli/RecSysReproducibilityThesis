@@ -140,6 +140,7 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
 
                 item_scores = - \
                     np.ones((len(test_users), len(test_recipes))) * np.inf
+
                 for index in range(len(test_users)):
                     test_u = int(global_test_users[test_users[index]])
                     test_r = int(test_recipes[index])
@@ -204,6 +205,9 @@ class RecipeRec_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_S
         print('total_length_index_list: ', len(self.total_length_index_list))
         print('total_ingre_neighbor_tensor: ',
               self.total_ingre_neighbor_tensor.shape)
+
+        def find(tensor, values):
+            return torch.nonzero(tensor[..., None] == values)
 
         # Passo il modello da trainare, non credo sia giusto farlo così
         self._model = RecipeRec(
