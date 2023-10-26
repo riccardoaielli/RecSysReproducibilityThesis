@@ -127,3 +127,4 @@ ENV/
 WWW2023/MMSSL_github/MMSSL/logs/*
 WWW2023/MMSSL_our_interface/MMSSL/logs/*
 result_experiments/BM3/outputBM3_baby_sports.txt
+WWW2022/FastVAE_github/logs_test/*
