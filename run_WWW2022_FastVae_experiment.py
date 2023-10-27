@@ -31,7 +31,6 @@ from WWW2022.FastVAE_our_interface.FastVAE_RecommenderWrapper import FastVAE_Rec
 
 def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                          config,
-                                         # TODO passare parametri necessari
                                          recommender_class,
                                          hyperparameters_dictionary,
                                          max_epochs_for_earlystopping,
@@ -62,7 +61,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train, config],  # TODO inserire parametri per wrapper
+            experiment_configuration.URM_train, config],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -75,8 +74,6 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     # Unione di train e validation
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
-
-    # TODO
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -107,7 +104,6 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
                                             evaluator_test=experiment_configuration.evaluator_test)
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
-        # TODO inserire parametri per wrapper,
         CONSTRUCTOR_POSITIONAL_ARGS=[
             experiment_configuration.URM_train, config],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
@@ -117,8 +113,6 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args_last_test = recommender_input_args.copy()
     recommender_input_args_last_test.CONSTRUCTOR_POSITIONAL_ARGS[
         0] = experiment_configuration.URM_train_last_test
-
-    # TODO
 
     hyperparameterSearch.search(recommender_input_args,
                                 recommender_input_args_last_test=recommender_input_args_last_test,
@@ -146,12 +140,10 @@ def run_this_algorithm_experiment(dataset_name,
     baseline_folder_path = result_folder_path + "baselines/"
     this_model_folder_path = result_folder_path + "this_model/"
 
-    # TODO passare gli argomenti necessari al datareader
     dataset = FastVAEDataReader(dataset_name, data_folder_path)
 
     print('Current dataset is: {}'.format(dataset_name))
 
-    # TODO Recupero i dati dal datareader URM e altri valori che mi servono
     URM_train = dataset.URM_DICT["URM_train"].copy()
     URM_validation = dataset.URM_DICT["URM_validation"].copy()
     URM_test = dataset.URM_DICT["URM_test"].copy()
@@ -180,7 +172,7 @@ def run_this_algorithm_experiment(dataset_name,
                                ["Training data", "Test data"],
                                data_folder_path + "popularity_statistics")
 
-    metric_to_optimize = 'NDCG'  # Dato originale dell'articolo # TODO controlla
+    metric_to_optimize = 'NDCG'  # Dato originale dell'articolo
     cutoff_to_optimize = 50
     cutoff_list = [1, 5, 10, 20, 30, 40, 50, 100]
     max_total_time = 14*24*60*60  # 14 days # Tempo massimo di training
@@ -225,16 +217,13 @@ def run_this_algorithm_experiment(dataset_name,
 
     use_gpu = False  # TODO use_gpu
 
-    # TODO fare settaggio iperparametri a seconda del dataset e prendi valori coretti da paper
-
     config = dict()
     # the dimenson of the latent vector for student model
     config['dim'] = [200, 32],
-    config['sample_num'] = 500,  # the number of sampled items#
     config['subspace_num'] = 2,  # the number of splitted sub space#
     config['cluster_num'] = 16,  # the number of cluster centroids
     config['batch_size'] = 256,  # the batch size for training
-    config['epoch'] = 2,  # the number of epoches
+    config['epoch'] = 200,  # the number of epoches
     config['learning_rate'] = 0.001,  # the learning rate for training
     # random seed values, nel codice mi sembra sia embeddato 10
     config['seed'] = 20,
@@ -252,8 +241,14 @@ def run_this_algorithm_experiment(dataset_name,
     config['anneal'] = 1.0,  # parameters for kl loss
     config['batch_size_u'] = 128,  # batch size user for inference
     config['reduction'] = False,  # loss if reduction
-    config['weight_decay'] = 1e-3,  # weight decay for the optimizer
-    config['multi'] = 1,  # the number of extended items')
+    # weight decay for the optimizer default 1e-3
+    config['weight_decay'] = 0.01,
+    config['multi'] = 1,  # the number of extended items
+
+    if dataset_name == 'ml10M':
+        config['sample_num'] = 200,  # the number of sampled items default 500
+    elif dataset_name == 'gowalla':
+        config['sample_num'] = 1000,
 
     all_hyperparameters = {
         'epochs': config['epoch'][0],  # the number of epoch
@@ -268,7 +263,7 @@ def run_this_algorithm_experiment(dataset_name,
 
             # Funzione che esegue il modello con gli iperparametri settati
             _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                                 config,  # TODO inserisci argomenti necessari per e istanza wrapper
+                                                 config,
                                                  FastVAE_RecommenderWrapper,  # Classe del metodo che deve eseguire
                                                  all_hyperparameters,
                                                  max_epochs_for_earlystopping,
@@ -341,7 +336,7 @@ def run_this_algorithm_experiment(dataset_name,
 
     if flag_print_results:
         paper_results = pd.DataFrame(index=[cutoff_to_optimize], columns=[
-                                     'NDCG', 'RECALL'])  # TODO
+                                     'NDCG', 'RECALL'])
 
         if dataset_name == 'ml10M':
             paper_results.loc[cutoff_to_optimize, 'NDCG'] = 0.3275
@@ -368,19 +363,17 @@ def run_this_algorithm_experiment(dataset_name,
                                            UCM_names_list=dataset.UCM_DICT.keys(),
                                            )
 
-        # TODO sistema con coerenza
-
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "article_metrics"),
                                              metrics_list=[
-                                                 'RECALL', 'NDCG'],
-                                             cutoffs_list=[10, 20],
+                                                 'NDCG', 'RECALL'],
+                                             cutoffs_list=[50],
                                              table_title=None,
                                              highlight_best=True)
 
         result_loader.generate_latex_results(result_folder_path + "{}_{}_{}_latex_results.txt".format(ALGORITHM_NAME, dataset_name, "cutoffs"),
                                              metrics_list=[
-                                                 'RECALL', 'NDCG'],
-                                             cutoffs_list=[5, 10, 50, 100],
+                                                 'NDCG', 'RECALL'],
+                                             cutoffs_list=[5, 10, 20, 100],
                                              table_title=None,
                                              highlight_best=True)
 
@@ -426,7 +419,7 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    dataset_list = ['gowalla', "ml10M"]  # TODO 'gowalla',
+    dataset_list = ['gowalla', "ml10M"]  # 'gowalla',
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))

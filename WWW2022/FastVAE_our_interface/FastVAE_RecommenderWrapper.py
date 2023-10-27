@@ -59,7 +59,7 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
 
     RECOMMENDER_NAME = "FastVAE_RecommenderWrapper"
 
-    def __init__(self, URM_train, config, verbose=True, use_gpu=True):  # TODO
+    def __init__(self, URM_train, config, verbose=True, use_gpu=True):
         super(FastVAE_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
 
@@ -89,7 +89,7 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
         if self.config['fix_seed'][0]:
             setup_seed(int(self.config['seed'][0]))
 
-    def _compute_item_score(self, user_id_array, items_to_compute=None):  # TODO
+    def _compute_item_score(self, user_id_array, items_to_compute=None):
 
         item_scores = - np.ones((len(user_id_array), self.item_num)) * np.inf
 
@@ -136,11 +136,7 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
         else:
             raise ValueError('Not supported model name!!!')
 
-        # self._model = BaseVAE(  # TODO
-        #     epochs=self.epochs,
-        # ).to(self.device)
-
-    def fit(self,  # TODO
+    def fit(self,
             epochs=None,
             temp_file_folder=None,
             # These are standard
@@ -361,7 +357,6 @@ class UserItemData(Dataset):
 
 
 def custom_collate_(batch):
-    # TODO numpy.array()
     return torch.LongTensor(np.array(pad_sequence_int(batch)))
 
 
