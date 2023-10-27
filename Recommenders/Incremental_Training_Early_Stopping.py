@@ -6,7 +6,8 @@ Created on 06/07/2018
 @author: Anonymized for blind review
 """
 
-import time, sys
+import time
+import sys
 import numpy as np
 import pandas as pd
 
@@ -42,7 +43,6 @@ class Incremental_Training_Early_Stopping(object):
         self._earlystopping_validation_summary_df = None
         super(Incremental_Training_Early_Stopping, self).__init__()
 
-
     def get_early_stopping_final_epochs_dict(self):
         """
         This function returns a dictionary to be used as optimal parameters in the .fit() function
@@ -54,7 +54,6 @@ class Incremental_Training_Early_Stopping(object):
 
         return {"epochs": self.epochs_best}
 
-
     def _run_epoch(self, num_epoch):
         """
         This function should run a single epoch on the object you train. This may either involve calling a function to do an epoch
@@ -64,7 +63,6 @@ class Incremental_Training_Early_Stopping(object):
         :return:
         """
         raise NotImplementedError()
-
 
     def _prepare_model_for_validation(self):
         """
@@ -76,7 +74,6 @@ class Incremental_Training_Early_Stopping(object):
         :return:
         """
         raise NotImplementedError()
-
 
     def _update_best_model(self):
         """
@@ -98,21 +95,22 @@ class Incremental_Training_Early_Stopping(object):
         """
 
         results_run["epoch"] = epochs_current
-        results_run.reset_index(level=0, inplace = True)
-        results_run.set_index('epoch', inplace = True)
+        results_run.reset_index(level=0, inplace=True)
+        results_run.set_index('epoch', inplace=True)
 
         if self._earlystopping_validation_summary_df is None:
             self._earlystopping_validation_summary_df = results_run.copy()
         else:
-            self._earlystopping_validation_summary_df = pd.concat([self._earlystopping_validation_summary_df, results_run], axis=0)
+            self._earlystopping_validation_summary_df = pd.concat(
+                [self._earlystopping_validation_summary_df, results_run], axis=0)
 
     def get_validation_summary_table(self):
         return self._earlystopping_validation_summary_df.copy() if self._earlystopping_validation_summary_df is not None else None
 
-    def _train_with_early_stopping(self, epochs_max, epochs_min = 0,
-                                   validation_every_n = None, stop_on_validation = False,
-                                   validation_metric = None, lower_validations_allowed = None, evaluator_object = None,
-                                   algorithm_name = "Incremental_Training_Early_Stopping"):
+    def _train_with_early_stopping(self, epochs_max, epochs_min=0,
+                                   validation_every_n=None, stop_on_validation=False,
+                                   validation_metric=None, lower_validations_allowed=None, evaluator_object=None,
+                                   algorithm_name="Incremental_Training_Early_Stopping"):
         """
 
         :param epochs_max:                  max number of epochs the training will last
@@ -168,20 +166,21 @@ class Incremental_Training_Early_Stopping(object):
 
         """
 
-        assert epochs_max >= 0, "{}: Number of epochs_max must be >= 0, passed was {}".format(algorithm_name, epochs_max)
-        assert epochs_min >= 0, "{}: Number of epochs_min must be >= 0, passed was {}".format(algorithm_name, epochs_min)
-        assert epochs_min <= epochs_max, "{}: epochs_min must be <= epochs_max, passed are epochs_min {}, epochs_max {}".format(algorithm_name, epochs_min, epochs_max)
+        assert epochs_max >= 0, "{}: Number of epochs_max must be >= 0, passed was {}".format(
+            algorithm_name, epochs_max)
+        assert epochs_min >= 0, "{}: Number of epochs_min must be >= 0, passed was {}".format(
+            algorithm_name, epochs_min)
+        assert epochs_min <= epochs_max, "{}: epochs_min must be <= epochs_max, passed are epochs_min {}, epochs_max {}".format(
+            algorithm_name, epochs_min, epochs_max)
 
         # Train for max number of epochs with no validation nor early stopping
         # OR Train for max number of epochs with validation but NOT early stopping
         # OR Train for max number of epochs with validation AND early stopping
         assert evaluator_object is None or\
-               (evaluator_object is not None and not stop_on_validation and validation_every_n is not None and validation_metric is not None) or\
-               (evaluator_object is not None and stop_on_validation and validation_every_n is not None and validation_metric is not None and lower_validations_allowed is not None),\
-            "{}: Inconsistent parameters passed, please check the supported uses".format(algorithm_name)
-
-
-
+            (evaluator_object is not None and not stop_on_validation and validation_every_n is not None and validation_metric is not None) or\
+            (evaluator_object is not None and stop_on_validation and validation_every_n is not None and validation_metric is not None and lower_validations_allowed is not None),\
+            "{}: Inconsistent parameters passed, please check the supported uses".format(
+                algorithm_name)
 
         start_time = time.time()
 
@@ -212,9 +211,12 @@ class Incremental_Training_Early_Stopping(object):
 
                 # If the evaluator validation has multiple cutoffs, choose the first one
                 start_time_validation = time.time()
-                results_run, results_run_string = evaluator_object.evaluateRecommender(self)
-                results_run["earlystopping_evaluation_time"] = time.time()-start_time_validation
-                self._update_validation_summary_table(epochs_current, results_run)
+                results_run, results_run_string = evaluator_object.evaluateRecommender(
+                    self)
+                results_run["earlystopping_evaluation_time"] = time.time(
+                )-start_time_validation
+                self._update_validation_summary_table(
+                    epochs_current, results_run)
 
                 current_metric_value = results_run.iloc[0][validation_metric]
 
@@ -224,14 +226,16 @@ class Incremental_Training_Early_Stopping(object):
                 if not np.isfinite(current_metric_value):
                     if isinstance(self, BaseTempFolder):
                         # If the recommender uses BaseTempFolder, clean the temp folder
-                        self._clean_temp_folder(temp_file_folder=self.temp_file_folder)
+                        self._clean_temp_folder(
+                            temp_file_folder=self.temp_file_folder)
 
-                    assert False, "{}: metric value is not a finite number, terminating!".format(self.RECOMMENDER_NAME)
-
+                    assert False, "{}: metric value is not a finite number, terminating!".format(
+                        self.RECOMMENDER_NAME)
 
                 if self.best_validation_metric is None or self.best_validation_metric < current_metric_value:
 
-                    print("{}: New best model found! Updating.".format(algorithm_name))
+                    print("{}: New best model found! Updating.".format(
+                        algorithm_name))
                     self.best_validation_metric = current_metric_value
                     self._update_best_model()
 
@@ -241,19 +245,19 @@ class Incremental_Training_Early_Stopping(object):
                 else:
                     lower_validatons_count += 1
 
-
                 if stop_on_validation and lower_validatons_count >= lower_validations_allowed and epochs_current >= epochs_min:
                     convergence = True
 
                     elapsed_time = time.time() - start_time
-                    new_time_value, new_time_unit = seconds_to_biggest_unit(elapsed_time)
+                    new_time_value, new_time_unit = seconds_to_biggest_unit(
+                        elapsed_time)
 
                     print("{}: Convergence reached! Terminating at epoch {}. Best value for '{}' at epoch {} is {:.4f}. Elapsed time {:.2f} {}".format(
                         algorithm_name, epochs_current, validation_metric, self.epochs_best, self.best_validation_metric, new_time_value, new_time_unit))
 
-
             elapsed_time = time.time() - start_time
-            new_time_value, new_time_unit = seconds_to_biggest_unit(elapsed_time)
+            new_time_value, new_time_unit = seconds_to_biggest_unit(
+                elapsed_time)
 
             print("{}: Epoch {} of {}. Elapsed time {:.2f} {}".format(
                 algorithm_name, epochs_current, epochs_max, new_time_value, new_time_unit))
@@ -272,11 +276,11 @@ class Incremental_Training_Early_Stopping(object):
             self._prepare_model_for_validation()
             self._update_best_model()
 
-
         # Stop when max epochs reached and not early-stopping
         if not convergence:
             elapsed_time = time.time() - start_time
-            new_time_value, new_time_unit = seconds_to_biggest_unit(elapsed_time)
+            new_time_value, new_time_unit = seconds_to_biggest_unit(
+                elapsed_time)
 
             if evaluator_object is not None and self.best_validation_metric is not None:
                 print("{}: Terminating at epoch {}. Best value for '{}' at epoch {} is {:.4f}. Elapsed time {:.2f} {}".format(
@@ -284,4 +288,3 @@ class Incremental_Training_Early_Stopping(object):
             else:
                 print("{}: Terminating at epoch {}. Elapsed time {:.2f} {}".format(
                     algorithm_name, epochs_current, new_time_value, new_time_unit))
-

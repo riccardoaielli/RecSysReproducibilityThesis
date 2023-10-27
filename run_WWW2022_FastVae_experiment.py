@@ -30,12 +30,14 @@ from WWW2022.FastVAE_our_interface.FastVAE_RecommenderWrapper import FastVAE_Rec
 
 
 def _run_algorithm_fixed_hyperparameters(experiment_configuration,
+                                         config,
                                          # TODO passare parametri necessari
                                          recommender_class,
                                          hyperparameters_dictionary,
                                          max_epochs_for_earlystopping,
                                          min_epochs_for_earlystopping,
-                                         output_folder_path, use_gpu):
+                                         output_folder_path,
+                                         use_gpu):
     """
     Train algorithm with the original hyperparameters
     1 - The model is trained with the maximum number of epochs
@@ -60,7 +62,7 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
     recommender_input_args = SearchInputRecommenderArgs(
         # Mettere qua i parametri ossia le strutture dati che mi servono (grafo, edgeloaders) da passare al wrapper e in modo simile anche per our_interface
         CONSTRUCTOR_POSITIONAL_ARGS=[
-            experiment_configuration.URM_train],  # TODO inserire parametri per wrapper
+            experiment_configuration.URM_train, config],  # TODO inserire parametri per wrapper
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS={})
@@ -106,7 +108,8 @@ def _run_algorithm_fixed_hyperparameters(experiment_configuration,
 
     recommender_input_args = SearchInputRecommenderArgs(  # Stessa cosa di riga 58 ma con early stopping
         # TODO inserire parametri per wrapper,
-        CONSTRUCTOR_POSITIONAL_ARGS=[experiment_configuration.URM_train],
+        CONSTRUCTOR_POSITIONAL_ARGS=[
+            experiment_configuration.URM_train, config],
         CONSTRUCTOR_KEYWORD_ARGS={"use_gpu": use_gpu, "verbose": False},
         FIT_KEYWORD_ARGS={},
         EARLYSTOPPING_KEYWORD_ARGS=earlystopping_hyperparameters)  # Dizionario di iperparametri con cui fa early stopping
@@ -157,7 +160,7 @@ def run_this_algorithm_experiment(dataset_name,
 
     # Ensure IMPLICIT data and disjoint test-train split
     # Verifica che i dati siano impliciti
-    # assert_implicit_data([URM_train, URM_validation, URM_test]) # TODO
+    assert_implicit_data([URM_train, URM_validation, URM_test])
     # Verifica che i dati siano disgiunti
     assert_disjoint_matrices([URM_train, URM_validation, URM_test])
 
@@ -222,7 +225,7 @@ def run_this_algorithm_experiment(dataset_name,
 
     use_gpu = False  # TODO use_gpu
 
-    # TODO fare settaggio iperparametri a seconda del dataset
+    # TODO fare settaggio iperparametri a seconda del dataset e prendi valori coretti da paper
 
     config = dict()
     # the dimenson of the latent vector for student model
@@ -233,12 +236,14 @@ def run_this_algorithm_experiment(dataset_name,
     config['batch_size'] = 256,  # the batch size for training
     config['epoch'] = 2,  # the number of epoches
     config['learning_rate'] = 0.001,  # the learning rate for training
-    config['seed'] = 20,  # random seed values
+    # random seed values, nel codice mi sembra sia embeddato 10
+    config['seed'] = 20,
     config['ratio'] = 0.8,  # the spilit ratio of dataset for train and test
     config['log_path'] = 'logs_test',  # the path for log files
     # default 16 the number of workers for dataloader
     config['num_workers'] = 8,
     config['data_dir'] = 'datasets',  # the dir of datafiles
+    config['optim'] = 'adam',  # the optimizer for training
     # the sampler 0 ] =  no sampler 1  uniform 2 popular 3 MidxUni 4 MidxPop
     config['sampler'] = 4,
     config['fix_seed'] = True,  # whether to fix the seed values
@@ -251,10 +256,10 @@ def run_this_algorithm_experiment(dataset_name,
     config['multi'] = 1,  # the number of extended items')
 
     all_hyperparameters = {
-        'epoch': config['epoch'],  # the number of epoch
+        'epochs': config['epoch'][0],  # the number of epoch
     }
 
-    max_epochs_for_earlystopping = config['epoch']
+    max_epochs_for_earlystopping = config['epoch'][0]
     min_epochs_for_earlystopping = 0
 
     if flag_article_default:
@@ -263,7 +268,7 @@ def run_this_algorithm_experiment(dataset_name,
 
             # Funzione che esegue il modello con gli iperparametri settati
             _run_algorithm_fixed_hyperparameters(experiment_configuration,
-                                                 graph,  # TODO inserisci argomenti necessari per e istanza wrapper
+                                                 config,  # TODO inserisci argomenti necessari per e istanza wrapper
                                                  FastVAE_RecommenderWrapper,  # Classe del metodo che deve eseguire
                                                  all_hyperparameters,
                                                  max_epochs_for_earlystopping,
@@ -421,7 +426,7 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    dataset_list = ["ml10M"]  # TODO
+    dataset_list = ['gowalla', "ml10M"]  # TODO 'gowalla',
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))

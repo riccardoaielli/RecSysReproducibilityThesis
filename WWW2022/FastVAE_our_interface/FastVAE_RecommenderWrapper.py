@@ -59,7 +59,7 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
 
     RECOMMENDER_NAME = "FastVAE_RecommenderWrapper"
 
-    def __init__(self, config, URM_train, verbose=True, use_gpu=True):  # TODO
+    def __init__(self, URM_train, config, verbose=True, use_gpu=True):  # TODO
         super(FastVAE_RecommenderWrapper, self).__init__(
             URM_train, verbose=verbose)
 
@@ -80,29 +80,41 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
         config['device'] = self.device
 
         self.config = config
+        self.train_mat = URM_train
 
-        sampler = str(self.config['sampler']) + '_' + \
-            str(self.config['multi']) + 'x'
-        if self.config['fix_seed']:
-            setup_seed(self.config['seed'])
+        self.sampler = str(self.config['sampler'][0]) + '_' + \
+            str(self.config['multi'][0]) + 'x'
+
+        self.item_emb = None
+        if self.config['fix_seed'][0]:
+            setup_seed(int(self.config['seed'][0]))
 
     def _compute_item_score(self, user_id_array, items_to_compute=None):  # TODO
 
-        item_scores = - np.ones((len(user_id_array), self.n_items)) * np.inf
+        item_scores = - np.ones((len(user_id_array), self.item_num)) * np.inf
 
-        print(user_id_array)
+        allPred = torch.mm(self.user_emb[user_id_array], torch.transpose(
+            self.item_emb, 1, 0)).detach().cpu().numpy()
 
-        allPred = t.mm(self.usrEmbeds[user_id_array], t.transpose(
-            self.itmEmbeds, 1, 0)).detach().cpu().numpy()  # * (1 - trnMask) - trnMask * 1e8
+        # users = np.random.choice(user_num, min(user_num, 5000), False)
+        # m = Eval.evaluate_item(
+        #     self.train_mat[users, :], self.test_mat[users, :], user_emb[users, :], item_emb, topk=0)
 
-        if items_to_compute is not None:
-            item_scores[user_id_array,
-                        items_to_compute] = allPred[user_id_array, items_to_compute]
-        else:
-            item_scores = allPred  # item_scores[user_id_array, :] = allPred
+        item_scores = allPred
 
-        if True:
-            print(np.shape(item_scores))
+        # print(user_id_array)
+
+        # allPred = t.mm(self.usrEmbeds[user_id_array], t.transpose(
+        #     self.itmEmbeds, 1, 0)).detach().cpu().numpy()  # * (1 - trnMask) - trnMask * 1e8
+
+        # if items_to_compute is not None:
+        #     item_scores[user_id_array,
+        #                 items_to_compute] = allPred[user_id_array, items_to_compute]
+        # else:
+        #     item_scores = allPred  # item_scores[user_id_array, :] = allPred
+
+        # if True:
+        #     print(np.shape(item_scores))
 
         return item_scores
 
@@ -115,9 +127,18 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
 
         torch.cuda.empty_cache()
 
-        self._model = BaseVAE(  # TODO
-            epochs=self.epochs,
-        ).to(self.device)
+        if self.config['sampler'][0] == 0:
+            self._model = BaseVAE(
+                self.item_num * self.config['multi'][0], self.config['dim'][0]).to(self.device)
+        elif self.config['sampler'][0] > 0:
+            self._model = VAE_Sampler(
+                self.item_num * self.config['multi'][0], self.config['dim'][0]).to(self.device)
+        else:
+            raise ValueError('Not supported model name!!!')
+
+        # self._model = BaseVAE(  # TODO
+        #     epochs=self.epochs,
+        # ).to(self.device)
 
     def fit(self,  # TODO
             epochs=None,
@@ -130,16 +151,34 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
         self.temp_file_folder = self._get_unique_temp_folder(
             input_temp_file_folder=temp_file_folder)
 
-        self.epochs = epochs
+        self.user_num, self.item_num = self.train_mat.shape
+
+        assert self.config['sample_num'][0] < self.item_num
 
         # Inizializza il modello
         self._init_model()
         # Ottimizzatore
-        self.opt = t.optim.Adam(self._model.parameters(),  # TODO# TODO# TODO
-                                lr=self.lr, weight_decay=0)
-        self.masker = RandomMaskSubgraphs(
-            self.device, self.n_users, self.maskDepth, self.n_items, keepRate)
-        self.sampler = LocalGraph(self.device, self.seedNum)
+        if self.config['optim'][0] == 'adam':
+            self.optimizer = torch.optim.Adam(self._model.parameters(
+            ), lr=self.config['learning_rate'][0], weight_decay=self.config['weight_decay'][0])
+        elif self.config['optim'][0] == 'sgd':
+            self.optimizer = torch.optim.SGD(self._model.parameters(
+            ), lr=self.config['learning_rate'][0], weight_decay=self.config['weight_decay'][0])
+        else:
+            raise ValueError('Unkown optimizer!')
+
+        self.scheduler = StepLR(
+            self.optimizer, self.config['step_size'][0], self.config['gamma'][0])
+
+        train_data = UserItemData(self.URM_train)
+        self.train_dataloader = DataLoader(train_data, batch_size=self.config['batch_size'][0], num_workers=self.config['num_workers'][0],
+                                           pin_memory=True, shuffle=True, collate_fn=custom_collate_)
+
+        self.initial_list = []
+        self.training_list = []
+        self.sampling_list = []
+        self.inference_list = []
+        self.cal_loss_list = []
 
         ###############################################################################
         # This is a standard training with early stopping part, most likely you won't need to change it
@@ -164,70 +203,81 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
 
         self._prepare_model_for_validation()
 
-    def _prepare_model_for_validation(self):  # TODOvvvvvvv
+    def _prepare_model_for_validation(self):
 
-        self.usrEmbeds, self.itmEmbeds = self._model(
-            self.torchBiAdj, self.torchBiAdj)
+        self._model.eval()
+        with torch.no_grad():
+
+            user_emb = get_user_embs(
+                self.train_mat, self._model, self.device, self.config)
+            item_emb = self._model._get_item_emb()
+
+            # user_emb = user_emb.cpu().data
+            # item_emb = item_emb.cpu().data
+
+            self.user_emb = user_emb.cpu().data
+            self.item_emb = item_emb.cpu().data
 
         pass
 
     def _update_best_model(self):
         self.save_model(self.temp_file_folder, file_name="_best_model")
 
-    def _run_epoch(self, currentEpoch):  # TODO
+    def _run_epoch(self, currentEpoch):
 
         loss_, kld_loss = 0.0, 0.0
         if currentEpoch > 0:
-            del sampler
-            if self.config['sampler'] > 2:
-                del item_emb
+            del self.sampler
+            if self.config['sampler'][0] > 2:
+                del self.item_emb
 
         infer_total_time = 0.0
         sample_total_time = 0.0
         loss_total_time = 0.0
         t0 = time.time()
-        if self.config['sampler'] > 0:
-            if self.config['sampler'] == 1:
-                sampler = SamplerBase(
-                    train_mat.shape[1] * self.config['multi'], self.config['sample_num'], device)
-            elif self.config['sampler'] == 2:
-                pop_count = np.squeeze(train_mat.sum(axis=0).A)
+        if self.config['sampler'][0] > 0:
+            if self.config['sampler'][0] == 1:
+                self.sampler = SamplerBase(
+                    self.train_mat.shape[1] * self.config['multi'][0], self.config['sample_num'][0], self.device)
+            elif self.config['sampler'][0] == 2:
+                pop_count = np.squeeze(self.train_mat.sum(axis=0).A)
                 pop_count = np.r_[pop_count, np.ones(
-                    train_mat.shape[1] * (self.config['multi'] - 1))]
-                sampler = PopularSampler(
-                    pop_count, self.config['sample_num'], device)
-            elif self.config['sampler'] == 3:
-                item_emb = model._get_item_emb().detach()
-                sampler = MidxUniform(
-                    item_emb, self.config['sample_num'], device, self.config['cluster_num'])
-            elif self.config['sampler'] == 4:
-                item_emb = model._get_item_emb().detach()
-                pop_count = np.squeeze(train_mat.sum(axis=0).A)
+                    self.train_mat.shape[1] * (self.config['multi'][0] - 1))]
+                self.sampler = PopularSampler(
+                    pop_count, self.config['sample_num'][0], self.device)
+            elif self.config['sampler'][0] == 3:
+                self.item_emb = self._model._get_item_emb().detach()
+                self.sampler = MidxUniform(
+                    self.item_emb, self.config['sample_num'][0], self.device, self.config['cluster_num'][0])
+            elif self.config['sampler'][0] == 4:
+                self.item_emb = self._model._get_item_emb().detach()
+                pop_count = np.squeeze(self.train_mat.sum(axis=0).A)
                 pop_count = np.r_[pop_count, np.ones(
-                    train_mat.shape[1] * (self.config['multi'] - 1))]
-                sampler = MidxUniPop(
-                    item_emb, self.config['sample_num'], device, self.config['cluster_num'], pop_count)
+                    self.train_mat.shape[1] * (self.config['multi'][0] - 1))]
+                self.sampler = MidxUniPop(
+                    self.item_emb, self.config['sample_num'][0], self.device, self.config['cluster_num'][0], pop_count)
         t1 = time.time()
 
-        for batch_idx, data in enumerate(train_dataloader):
-            model.train()
-            if self.config['sampler'] > 0:
-                sampler.train()
+        for batch_idx, data in enumerate(self.train_dataloader):
+            self._model.train()
+            if self.config['sampler'][0] > 0:
+                self.sampler.train()
             else:
-                sampler = None
+                self.sampler = None
             pos_id = data
-            pos_id = pos_id.to(device)
+            pos_id = pos_id.to(self.device)
 
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
             tt0 = time.time()
-            mu, logvar, loss, sample_time, loss_time = _model(pos_id, sampler)
+            mu, logvar, loss, sample_time, loss_time = self._model(
+                pos_id, self.sampler)
             tt1 = time.time()
             sample_total_time += sample_time
             infer_total_time += tt1 - tt0
             loss_total_time += loss_time
 
-            kl_divergence = _model.kl_loss(
-                mu, logvar, self.config['anneal'], reduction=self.config['reduction'])/self.config['batch_size']
+            kl_divergence = self._model.kl_loss(
+                mu, logvar, self.config['anneal'][0], reduction=self.config['reduction'][0])/self.config['batch_size'][0]
 
             loss_ += loss.item()
             kld_loss += kl_divergence.item()
@@ -235,24 +285,23 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
 
             loss.backward()
             # torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
-            optimizer.step()
+            self.optimizer.step()
             # break
             # torch.cuda.empty_cache()
             t2 = time.time()
-        logger.info('--loss : %.2f, kl_dis : %.2f, total : %.2f ' %
-                    (loss_, kld_loss, loss_ + kld_loss))
+
         torch.cuda.empty_cache()
-        scheduler.step()
+        self.scheduler.step()
         gc.collect()
-        initial_list.append(t1 - t0)
-        training_list.append(t2 - t1)
-        sampling_list.append(sample_total_time)
-        inference_list.append(infer_total_time)
-        cal_loss_list.append(loss_total_time)
+        self.initial_list.append(t1 - t0)
+        self.training_list.append(t2 - t1)
+        self.sampling_list.append(sample_total_time)
+        self.inference_list.append(infer_total_time)
+        self.cal_loss_list.append(loss_total_time)
 
         return
 
-    def save_model(self, folder_path, file_name=None):  # TODO
+    def save_model(self, folder_path, file_name=None):
 
         if file_name is None:
             file_name = self.RECOMMENDER_NAME
@@ -264,12 +313,12 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
             'model': self._model,
         }
 
-        t.save(data_dict_to_save, folder_path + file_name + '.mod')
-        log('Model Saved: %s' % folder_path + file_name)
+        torch.save(data_dict_to_save, folder_path + file_name + '.mod')
+        self._print('Model Saved: %s' % folder_path + file_name)
 
         self._print("Saving complete")
 
-    def load_model(self, folder_path, file_name=None):  # TODO
+    def load_model(self, folder_path, file_name=None):
 
         if file_name is None:
             file_name = self.RECOMMENDER_NAME
@@ -277,10 +326,18 @@ class FastVAE_RecommenderWrapper(BaseRecommender, Incremental_Training_Early_Sto
         self._print("Loading model from file '{}'".format(
             folder_path + file_name))
 
-        ckp = t.load(folder_path + file_name + '.mod')
+        ckp = torch.load(folder_path + file_name + '.mod')
         self._model = ckp['model']
-        self.opt = t.optim.Adam(self._model.parameters(),
-                                lr=self.lr, weight_decay=0)
+        if self.config['optim'][0] == 'adam':
+            self.optimizer = torch.optim.Adam(self._model.parameters(
+            ), lr=self.config['learning_rate'][0], weight_decay=self.config['weight_decay'][0])
+        elif self.config['optim'][0] == 'sgd':
+            self.optimizer = torch.optim.SGD(self._model.parameters(
+            ), lr=self.config['learning_rate'][0], weight_decay=self.config['weight_decay'][0])
+        else:
+            raise ValueError('Unkown optimizer!')
+        self.scheduler = StepLR(
+            self.optimizer, self.config['step_size'][0], self.config['gamma'][0])
 
         self._print("Loading complete")
 
@@ -301,3 +358,20 @@ class UserItemData(Dataset):
         # return self.user[idx], self.item[idx]
         pos_idx = self.train[self.users[idx]].nonzero()[1]
         return pos_idx
+
+
+def custom_collate_(batch):
+    # TODO numpy.array()
+    return torch.LongTensor(np.array(pad_sequence_int(batch)))
+
+
+def get_user_embs(data_mat, model, device, config):
+    data = UserItemData(data_mat, train_flag=False)
+    dataloader = DataLoader(data, batch_size=config['batch_size_u'][0], num_workers=config['num_workers'][0],
+                            pin_memory=False, shuffle=False, collate_fn=custom_collate_)
+    user_lst = []
+    for e in dataloader:
+        user_his = e
+        user_emb = model._get_user_emb(user_his.to(device))
+        user_lst.append(user_emb)
+    return torch.cat(user_lst, dim=0)

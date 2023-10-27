@@ -1,13 +1,14 @@
 # The cluster algorithmn(K-means) is implemented on the GPU
 from operator import imod, neg
 from numpy.core.numeric import indices
-import scipy.sparse as sps
+import scipy.sparse as ss
 from sklearn import cluster
 from sklearn.cluster import KMeans
 import torch
 import numpy as np
 import torch.nn as nn
 from torch._C import device, dtype
+from typing import List
 
 
 import torch
@@ -486,26 +487,6 @@ if __name__ == '__main__':
 
 
 ##################### utils ######################
-
-
-def get_logger(filename, verbosity=1, name=None):
-    filename = filename + '.txt'
-    level_dict = {0: logging.DEBUG, 1: logging.INFO, 2: logging.WARNING}
-    formatter = logging.Formatter(
-        "[%(asctime)s][%(filename)s][line:%(lineno)d][%(levelname)s] %(message)s"
-    )
-    logger = logging.getLogger(name)
-    logger.setLevel(level_dict[verbosity])
-
-    fh = logging.FileHandler(filename, "w")
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-
-    sh = logging.StreamHandler()
-    sh.setFormatter(formatter)
-    logger.addHandler(sh)
-
-    return logger
 
 
 def setup_seed(seed):
