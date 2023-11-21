@@ -215,7 +215,7 @@ def run_this_algorithm_experiment(dataset_name,
     # REPRODUCED ALGORITHM
     # Sezione che continene i valori degli iperparametri usati nell'articolo per ciascun dataset
 
-    use_gpu = False  # TODO use_gpu
+    use_gpu = True  # TODO use_gpu
 
     config = dict()
     # the dimenson of the latent vector for student model
@@ -223,7 +223,7 @@ def run_this_algorithm_experiment(dataset_name,
     config['subspace_num'] = 2,  # the number of splitted sub space#
     config['cluster_num'] = 16,  # the number of cluster centroids
     config['batch_size'] = 256,  # the batch size for training
-    config['epoch'] = 200,  # the number of epoches
+    config['epoch'] = 500,  # the number of epoches
     config['learning_rate'] = 0.001,  # the learning rate for training
     # random seed values, nel codice mi sembra sia embeddato 10
     config['seed'] = 20,
@@ -233,7 +233,7 @@ def run_this_algorithm_experiment(dataset_name,
     config['num_workers'] = 8,
     config['data_dir'] = 'datasets',  # the dir of datafiles
     config['optim'] = 'adam',  # the optimizer for training
-    # the sampler 0 ] =  no sampler 1  uniform 2 popular 3 MidxUni 4 MidxPop
+    # the sampler: 0 no sampler, 1  uniform, 2 popular, 3 MidxUni, 4 MidxPop
     config['sampler'] = 4,
     config['fix_seed'] = True,  # whether to fix the seed values
     config['step_size'] = 5,  # step size for learning rate discount
@@ -419,7 +419,7 @@ if __name__ == '__main__':
     # , "dice", "jaccard", "asymmetric", "tversky"]
     KNN_similarity_to_report_list = ["cosine"]
 
-    dataset_list = ['gowalla', "ml10M"]  # 'gowalla',
+    dataset_list = ['ml10M', 'gowalla']  # 'gowalla',
 
     for dataset_name in dataset_list:
         print("Running dataset: {}".format(dataset_name))
